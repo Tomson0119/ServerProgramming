@@ -1,5 +1,7 @@
-#include "socket.h"
+#include "stdafx.h"
+#include "socekt.h"
 
-const char* Hello() {
-	return "Hello";
+const char* Print()
+{
+	return "Hello World!";
 }
