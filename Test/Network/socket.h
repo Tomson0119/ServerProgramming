@@ -48,15 +48,27 @@ public:
 	void Listen();
 
 	// 연결을 허용하고 새로운 소켓을 생성한다.
-	Socket Accept(std::string& errorText);
+	Socket Accept();
+
+	// TCP 통신에서 스트림 데이터를 송신한다.
+	int Send(const char* data, int length);
+
+	// TCP 통신에서 스트림 데이터를 수신한다.
+	int Receive();
 
 	// 논블록킹 소켓으로 설정한다.
 	void SetNonBlocking();
 
-private:
+	// 소켓의 끝점 정보를 반환한다.
+	EndPoint GetPeerAddr();
+
+public:
 	// 수신 받을 수 있는 데이터의 최대 길이
 	static const int MaxReceiveLength = 1024;
 
+	char mReceiveBuffer[MaxReceiveLength];
+
+private:
 	SOCKET mSck;	// 소켓 핸들
 	
 	bool mNonBlocking = false;	// 논블록 플래그

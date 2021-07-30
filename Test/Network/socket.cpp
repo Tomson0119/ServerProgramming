@@ -7,11 +7,13 @@ Socket::Socket()
 	: mSck{}
 {
 	InitWSA();
+	memset(mReceiveBuffer, 0, sizeof(mReceiveBuffer));
 }
 
 Socket::Socket(SocketType type)
 {
 	InitWSA();
+	memset(mReceiveBuffer, 0, sizeof(mReceiveBuffer));
 
 	if (type == SocketType::TCP)
 	{
@@ -39,6 +41,7 @@ Socket::Socket(SOCKET sck)
 {
 	InitWSA();
 	mSck = sck;
+	memset(mReceiveBuffer, 0, sizeof(mReceiveBuffer));
 
 #ifdef _WIN32
 	ZeroMemory(&mReadOverlappedStruct, sizeof(mReadOverlappedStruct));
@@ -116,11 +119,78 @@ int Socket::Connect(const EndPoint& ep)
 
 void Socket::Listen()
 {
+	// backlog: 최대로 넣을 수 있는 연결 큐의 크기
+	// -> SOMAXCONN: 적절한 backlog로 설정해준다. 
+	if (listen(mSck, 5000) == -1)	// SOCKET_ERROR
+	{
+		std::stringstream ss;
+		ss << "Listening failed: " << GetLastErrorLog();
+		throw Exception(ss.str().c_str());
+	}
 }
 
-Socket Socket::Accept(std::string& errorText)
+Socket Socket::Accept()
 {
-	return Socket();
+	// param(2): 연결된 주소를 복사할 수 있다.
+	// param(3): param(2)의 크기
+	SOCKET acpt = accept(mSck, NULL, 0);
+	if (acpt == -1)	// INVALID_SOCKET
+	{
+		std::stringstream ss;
+		ss << "Accept failed: " << GetLastErrorLog();
+		throw Exception(ss.str().c_str());
+	}
+	return Socket(acpt);
+}
+
+int Socket::Send(const char* data, int length)
+{
+	// param(4): MSG_DONTROUT(라우팅을 하지 않는다.)
+	//			 MSG_OOB(Out of band 스트림 데이터를 보낸다.)
+	int len = send(mSck, data, length, 0);
+	if (len == -1)
+	{
+		if (!mNonBlocking) // 블록킹 소켓일 경우
+		{
+			std::stringstream ss;
+			ss << "Send failed: " << GetLastErrorLog();
+			throw Exception(ss.str().c_str());
+		}
+		else			  // 논블록킹 소켓일 경우
+		{
+		#ifdef _WIN32
+			return WSAGetLastError();
+		#else
+			return errno;
+		#endif
+		}
+	}
+}
+
+int Socket::Receive()
+{
+	// param(4): MSG_PEEK(뒤에 오는 데이터를 미리 보기만 한다.)
+	//			 MSG_OOB(Out of band 데이터 처리)
+	//			 MSG_WAITALL(특별한 상황에서만 수신받는다.)
+	int len = recv(mSck, mReceiveBuffer, MaxReceiveLength, 0);
+	if (len == -1)	// SOCKET_ERROR
+	{
+		if (!mNonBlocking)	// 블록킹 소켓일 경우
+		{
+			std::stringstream ss;
+			ss << "Receive failed: " << GetLastErrorLog();
+			throw Exception(ss.str().c_str());
+		}
+		else				// 논블록킹 소켓일 경우
+		{
+		#ifdef _WIN32
+			return WSAGetLastError();
+		#else
+			return errno;
+		#endif
+		}
+	}
+	return len;
 }
 
 void Socket::SetNonBlocking()
@@ -147,6 +217,30 @@ void Socket::SetNonBlocking()
 		// 논블록 상태를 나타내는 플래그를 설정한다.
 		mNonBlocking = true;
 	}
+}
+
+EndPoint Socket::GetPeerAddr()
+{
+	EndPoint ret;
+	socklen_t retLength = sizeof(ret.mAddr);
+
+	// 연결된 소켓의 주소를 반환한다.
+	if (getpeername(mSck, reinterpret_cast<sockaddr*>(&ret.mAddr), 
+		&retLength)	== -1)	// SOCKET_ERROR
+	{
+		std::stringstream ss;
+		ss << "GetPeerAddr failed: " << GetLastErrorLog();
+		throw Exception(ss.str().c_str());
+	}
+
+	// 주소 버퍼의 길이를 넘어서면 안된다.
+	if (retLength > sizeof(ret.mAddr))
+	{
+		std::stringstream ss;
+		ss << "GetPeerAddr buffer overrun: " << retLength;
+		throw Exception(ss.str().c_str());
+	}
+	return ret;
 }
 
 
