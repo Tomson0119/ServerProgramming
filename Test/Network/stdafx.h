@@ -16,7 +16,6 @@
 #include <exception>
 #include <string>
 #include <sstream>
-#include <cstdint>
 
 
 #ifdef _WIN32
