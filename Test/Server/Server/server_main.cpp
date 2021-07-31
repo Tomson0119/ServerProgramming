@@ -1,11 +1,19 @@
 #include "../Net/common.h"
 #include <iostream>
+#include <fstream>
 
 using namespace std;
 
 constexpr int Server_port = 5505;
 
+void BlockingTCPSocket();
+
 int main()
+{
+	BlockingTCPSocket();
+}
+
+void BlockingTCPSocket()
 {
 	try {
 		Socket listenSck(SocketType::TCP);
