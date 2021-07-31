@@ -25,6 +25,14 @@ EndPoint::EndPoint(const char* ip, short port)
 	inet_pton(AF_INET, ip, &mAddr.sin_addr);
 }
 
+EndPoint::EndPoint(short port)
+{
+	mAddr = {};
+	mAddr.sin_family = AF_INET;
+	mAddr.sin_port = htons((u_short)port);
+	mAddr.sin_addr.s_addr = htonl(INADDR_ANY);
+}
+
 EndPoint::~EndPoint()
 {
 }

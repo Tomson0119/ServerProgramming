@@ -14,6 +14,7 @@ class EndPoint
 public:
 	EndPoint();
 	EndPoint(const char* ip, short port);
+	EndPoint(short port);
 	~EndPoint();
 
 	// 아무 EndPoint에나 할당할 때 쓰인다.
