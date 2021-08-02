@@ -1,6 +1,9 @@
-#include "netCommon.h"
+#include <netCommon.h>
+#include <iostream>
 
 using namespace std;
+
+constexpr int ServerPort = 5505;
 
 enum class CustomMsgTypes : uint32_t
 {
@@ -8,20 +11,21 @@ enum class CustomMsgTypes : uint32_t
 	MovePlayer
 };
 
-class CustomClient : public net::c
+class CustomClient : public net::client_side<CustomMsgTypes>
+{
+public:
+	bool FireBullet(float x, float y)
+	{
+		net::message<CustomMsgTypes> msg;
+		msg.header.id = CustomMsgTypes::FireBullet;
+		msg << x << y;
+		Send(msg);
+	}
+};
 
 int main()
 {
-	net::message<CustomMsgTypes> msg;
-	msg.header.id = CustomMsgTypes::FireBullet;
-
-	int a = 1;
-	bool b = true;
-	int c = 10;
-
-	msg << a << b << c;
-	
-	msg >> c >> b >> a;
-
-	cout << a << b << c;
+	CustomClient client;
+	client.Connect("127.0.0.1", 5505);
+	client.FireBullet(10.0f, 20.0f);
 }
