@@ -32,17 +32,18 @@ namespace net
 
 				// Resolve hostname/ip-address into physical address
 				asio::ip::tcp::resolver resolver(m_context);
-				m_endpoint = resolver.resolve(host, std::to_string(port));
+				asio::ip::tcp::resolver::results_type endpoint 
+					= resolver.resolve(host, std::to_string(port));
 
 				// Connection object connects to server.
-				m_connection->ConnectToServer(m_endpoint);
+				m_connection->ConnectToServer(endpoint);
 
 				// Start context thread.
 				m_thrContext = std::thread([this]() { m_context.run(); });
 			}
 			catch (std::exception& ex)
 			{
-				std::cerr << "Connect failed: " << e.what() << '\n';
+				std::cerr << "Connect failed: " << ex.what() << '\n';
 				return false;
 			}
 			return true;
@@ -72,6 +73,13 @@ namespace net
 				return m_connection->IsConnected();
 			else
 				return false;
+		}
+
+		// Send message to server
+		void Send(const message<T>& msg)
+		{
+			if (IsConnected())
+				m_connection->Send(msg);
 		}
 
 		// Retrieve queue of messages from server
