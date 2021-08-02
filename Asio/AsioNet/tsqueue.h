@@ -9,7 +9,7 @@ namespace net
 	public:
 		tsqueue() = default;
 		tsqueue(const tsqueue<T>&) = delete;
-		virtual ~tsQueue() { clear(); }
+		virtual ~tsqueue() { clear(); }
 		
 	public:
 		// Returns and maintains item at front of Queue
@@ -58,13 +58,13 @@ namespace net
 			return t;
 		}
 
-		size_t count() const
+		size_t count()
 		{
 			std::scoped_lock lock(mtxQueue);
 			return deq.size();
 		}
 
-		bool empty() const
+		bool empty()
 		{
 			std::scoped_lock lock(mtxQueue);
 			return deq.empty();
