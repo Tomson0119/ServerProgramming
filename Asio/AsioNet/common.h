@@ -13,6 +13,8 @@
 #include <iostream>
 #include <vector>
 #include <deque>
+#include <algorithm>
+#include <ranges>
 #include <chrono>
 #include <thread>
 #include <mutex>
