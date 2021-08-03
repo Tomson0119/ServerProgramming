@@ -11,7 +11,7 @@ namespace net
 	class client_side
 	{
 	public:
-		client_side() : m_socket(m_context)
+		client_side()
 		{
 
 		}
@@ -27,13 +27,15 @@ namespace net
 		{
 			try 
 			{
-				// Create a connection
-				m_connection = std::make_unique<connection<T>>();
-
 				// Resolve hostname/ip-address into physical address
 				asio::ip::tcp::resolver resolver(m_context);
 				asio::ip::tcp::resolver::results_type endpoint 
 					= resolver.resolve(host, std::to_string(port));
+
+				// Create a connection
+				m_connection = std::make_unique<connection<T>>(
+					connection<T>::owner::client,
+					m_context, asio::ip::tcp::socket(m_context), m_messagesIn);
 
 				// Connection object connects to server.
 				m_connection->ConnectToServer(endpoint);
@@ -94,12 +96,6 @@ namespace net
 
 		// thread of its own to excute its work commands.
 		std::thread m_thrContext;
-
-		// Socket connected to the server
-		asio::ip::tcp::socket m_socket;
-
-		// endpoint of the server
-		asio::ip::tcp::endpoint m_endpoint;
 
 		// Client has single instance of connection
 		std::unique_ptr<connection<T>> m_connection;
