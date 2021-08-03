@@ -107,7 +107,9 @@ namespace net
 				OnClientDisconnect(client);
 				client.reset();
 
-				m_connections.erase(std::ranges::remove(m_connections, client), m_connections.end());
+				m_connections.erase(
+					std::remove(m_connections.begin(), m_connections.end(), client),
+					m_connections.end());
 			}
 		}
 
@@ -136,12 +138,17 @@ namespace net
 			if (bInvalidClientExists)
 			{
 				// If invalid client exits, remove that invaild client.
-				m_connections.erase(std::ranges::remove(m_connections, nullptr), m_connections.end());
+				m_connections.erase(
+					std::remove(m_connections.begin(), m_connections.end(), nullptr), 
+					m_connections.end());
 			}
 		}
 
-		void Update(size_t nMaxMessages = -1)
+		void Update(size_t nMaxMessages = -1, bool bWait = false)
 		{
+			// We don't need the server to occupy 100% of a CPU core.
+			if (bWait) m_messagesIn.wait();
+
 			size_t nMessageCount = 0;
 			while (nMessageCount < nMaxMessages && !m_messagesIn.empty())
 			{
