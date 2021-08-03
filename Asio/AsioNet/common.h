@@ -19,5 +19,6 @@
 #include <thread>
 #include <mutex>
 #include <memory>
+#include <condition_variable>
 #include <exception>
 #include <assert.h>
