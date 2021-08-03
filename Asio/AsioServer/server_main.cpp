@@ -31,17 +31,43 @@ public:
 protected:
 	virtual bool OnClientConnect(std::shared_ptr<net::connection<CustomMsgTypes>> client)
 	{
+		net::message<CustomMsgTypes> msg;
+		msg.header.id = CustomMsgTypes::ServerAccept;
+		client->Send(msg);
+
 		return true;
 	}
 
 	virtual void OnClientDisconnect(std::shared_ptr<net::connection<CustomMsgTypes>> client)
 	{
-
+		cout << "Removing client [" << client->GetID() << '\n';
 	}
 
 	virtual void OnMessage(std::shared_ptr<net::connection<CustomMsgTypes>> client, net::message<CustomMsgTypes>& msg)
 	{
+		switch (msg.header.id)
+		{
+		case CustomMsgTypes::ServerPing:
+		{
+			cout << "[" << client->GetID() << "]: Server Ping\n";
 
+			// Simply bounce message back to client
+			client->Send(msg);
+		}
+		break;
+
+		case CustomMsgTypes::MessageAll:
+		{
+			std::cout << "[" << client->GetID() << "] Message All\n";
+
+			net::message<CustomMsgTypes> newMsg;
+			newMsg.header.id = CustomMsgTypes::ServerMessage;
+			newMsg << client->GetID();
+
+			MessageAllClients(newMsg, client);
+		}
+		break;
+		}
 	}
 };
 
@@ -52,6 +78,8 @@ int main()
 
 	while (1)
 	{
-		server.Update();
+		// Process message as many as possible.
+		// Server will wait if there's no messages
+		server.Update(-1, true);
 	}
 }
