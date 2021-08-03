@@ -13,14 +13,14 @@ namespace net
 		
 	public:
 		// Returns and maintains item at front of Queue
-		const T& front() const
+		const T& front()
 		{
 			std::scoped_lock lock(mtxQueue);
 			return deq.front();
 		}
 
 		// Returns and maintains item at back of Queue
-		const T& back() const
+		const T& back()
 		{
 			std::scoped_lock lock(mtxQueue);
 			return deq.back();
