@@ -24,7 +24,7 @@ namespace net
 		size_t size() const
 		{
 			// Message size is header's size and all the byte size of data
-			return sizeof(message_header<T>) + body.size();
+			return body.size();
 		}
 
 		// Produces description of message
@@ -90,7 +90,7 @@ namespace net
 	template<typename T>
 	struct owned_message
 	{
-		std::shared_ptr <connection<T>> remote = nullptr;
+		std::shared_ptr<connection<T>> remote = nullptr;
 		message<T> msg;
 
 		friend std::ostream& operator<<(std::ostream& os, const owned_message<T>& msg)
