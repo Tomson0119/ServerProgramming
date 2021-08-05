@@ -6,6 +6,10 @@
 
 namespace net
 {
+	// Forward declare
+	template<typename T>
+	class server_side;
+
 	// This class is managed by shared_ptr 
 	// and enable_shared_from_this returns new shared_ptr 
 	// when same object is called to create shared_ptr
@@ -30,6 +34,22 @@ namespace net
 			: m_context(context), m_socket(std::move(socket)), m_messagesIn(qIn)
 		{
 			m_ownerType = parent;
+
+			// Construct validation check data
+			if (m_ownerType == owner::server)
+			{
+				// Generate random data for the client
+				// to transform and send back for validation.
+				m_handshakeOut = uint64_t(std::chrono::system_clock::now().time_since_epoch().count());
+
+				// Pre-calculate the result for checking when the client responds.
+				m_handshakeCheck = scramble(m_handshakeOut);
+			}
+			else
+			{
+				m_handshakeOut = 0;
+				m_handshakeCheck = 0;
+			}			
 		}
 
 		virtual ~connection() { }
@@ -39,13 +59,21 @@ namespace net
 			return id;
 		}
 
-		void ConnectToClient(uint32_t uid = 0)
+		void ConnectToClient(net::server_side<T>* server, uint32_t uid = 0)
 		{
 			if (m_ownerType == owner::server)
 			{
 				if (IsConnected()) {
 					id = uid;
-					ReadHeader();
+
+					// ReadHeader();
+
+					// Write out the handshake data
+					WriteValidation();
+
+					// Next, wait asynchronously for validation data
+					// sent from the client
+					ReadValidation(server);
 				}
 			}
 		}
@@ -63,7 +91,11 @@ namespace net
 						// reading message task right after.
 						if (!ec)
 						{
-							ReadHeader();
+							// ReadHeader();
+
+							// First thing server will send is packet to be validated.
+							// so wait for that and respond.
+							ReadValidation();
 						}
 					});
 			}
@@ -226,6 +258,78 @@ namespace net
 			ReadHeader();
 		}
 
+		// Encrypt data
+		uint64_t scramble(uint64_t nInput)
+		{
+			uint64_t out = nInput ^ 0xDEADBEEFC0DECAFE;
+			out = (out & 0xF0F0F0F0F0F0F0) >> 4 | (out & 0x0F0F0F0F0F0F0F) << 4;
+			return out ^ 0xC0DEFACE12345678;
+		}
+
+		// ASYNC - Used by both client and server to write validation packet.
+		void WriteValidation()
+		{
+			asio::async_write(m_socket, asio::buffer(&m_handshakeOut, sizeof(uint64_t)),
+				[this](std::error_code ec, std::size_t size)
+				{
+					if (!ec)
+					{
+						// Validation data sent, 
+						// clients should wait for a response
+						if (m_ownerType == owner::client)
+							ReadHeader();
+					}
+					else
+					{
+						std::cout << "[" << id << "] Write validation failed.\n";
+						m_socket.close();
+					}
+				});
+		}
+
+		void ReadValidation(net::server_side<T>* server = nullptr)
+		{
+			asio::async_read(m_socket, asio::buffer(&m_handshakeIn, sizeof(uint64_t)),
+				[this, server](std::error_code ec, std::size_t size)
+				{
+					if (!ec)
+					{
+						if (m_ownerType == owner::server)
+						{
+							if (m_handshakeIn == m_handshakeCheck)
+							{
+								// Client has sent valid solutioin,
+								// so allow it to connect.
+								std::cout << "Client Validated\n";
+								server->OnClientValidated(this->shared_from_this());
+
+								// Waiting to receive data now
+								ReadHeader();
+							}
+							else
+							{
+								// Client gave incorrect data, so disconnect.
+								std::cout << "Client Disconnected (Fail Validation)\n";
+								m_socket.close();
+							}
+						}
+						else
+						{
+							// Connection is a client, so solve puzzle.
+							m_handshakeOut = scramble(m_handshakeIn);
+
+							// Write back to server.
+							WriteValidation();
+						}
+					}
+					else
+					{
+						std::cout << "Client Disconnected (ReadValidation)\n";
+						m_socket.close();
+					}
+				});
+		}
+
 	protected:
 		// Each connection has a unique socket to a remote.
 		asio::ip::tcp::socket m_socket;
@@ -247,5 +351,10 @@ namespace net
 		// The 'owner' decides how some of the connection behaves.
 		owner m_ownerType = owner::server;
 		uint32_t id = 0;
+
+		// Handshake Validation
+		uint64_t m_handshakeOut = 0;
+		uint64_t m_handshakeIn = 0;
+		uint64_t m_handshakeCheck = 0;
 	};
 }

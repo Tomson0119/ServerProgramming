@@ -75,7 +75,7 @@ namespace net
 							// Connection allowed, so add to container of new connections
 							m_connections.push_back(std::move(newConn));
 
-							m_connections.back()->ConnectToClient(nIDCounter++);
+							m_connections.back()->ConnectToClient(this, nIDCounter++);
 
 							std::cout << "[" << m_connections.back()->GetID() << "] Connection approved\n";
 						}
@@ -177,6 +177,13 @@ namespace net
 
 		// Called when a message arrives
 		virtual void OnMessage(std::shared_ptr<connection<T>> client, message<T>& msg)
+		{
+
+		}
+
+	public:
+		// Called when a client is validated.
+		virtual void OnClientValidated(std::shared_ptr<connection<T>> client)
 		{
 
 		}
