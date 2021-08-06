@@ -281,7 +281,7 @@ namespace net
 					}
 					else
 					{
-						std::cout << "[" << id << "] Write validation failed.\n";
+						std::cout << "Write validation failed.\n";
 						m_socket.close();
 					}
 				});
