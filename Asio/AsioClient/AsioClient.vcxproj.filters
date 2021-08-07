@@ -18,5 +18,8 @@
     <ClCompile Include="client_main.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="Asynchronous_input_and_ouput_example.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
