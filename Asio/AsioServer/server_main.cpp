@@ -40,7 +40,7 @@ protected:
 
 	virtual void OnClientDisconnect(std::shared_ptr<net::connection<CustomMsgTypes>> client)
 	{
-		cout << "Removing client [" << client->GetID() << '\n';
+		cout << "Removing client [" << client->GetID() << "]\n";
 	}
 
 	virtual void OnMessage(std::shared_ptr<net::connection<CustomMsgTypes>> client, net::message<CustomMsgTypes>& msg)
@@ -58,11 +58,14 @@ protected:
 
 		case CustomMsgTypes::MessageAll:
 		{
-			std::cout << "[" << client->GetID() << "] Message All\n";
+			string s;
+			msg >> s;
+
+			std::cout << "[" << client->GetID() << "] Message All -> " << s << '\n';			
 
 			net::message<CustomMsgTypes> newMsg;
 			newMsg.header.id = CustomMsgTypes::ServerMessage;
-			newMsg << client->GetID();
+			newMsg << client->GetID() << s;
 
 			MessageAllClients(newMsg, client);
 		}
@@ -76,10 +79,13 @@ int main()
 	CustomServer server(ServerPort);
 	server.Start();
 
+	bool current_key[3] = { false, false, false };
+	bool previous_key[3] = { false, false, false };
+
 	while (1)
 	{
 		// Process message as many as possible.
 		// Server will wait if there's no messages
-		server.Update(-1, true);
+		server.Update(-1, true);	
 	}
 }

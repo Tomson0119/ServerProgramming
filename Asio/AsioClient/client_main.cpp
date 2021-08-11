@@ -1,5 +1,6 @@
 #include <netCommon.h>
 #include <iostream>
+#include <conio.h>
 
 using namespace std;
 
@@ -17,6 +18,91 @@ enum class CustomMsgTypes : uint32_t
 class CustomClient : public net::client_side<CustomMsgTypes>
 {
 public:
+	atomic_bool loop = true;
+
+private:
+	bool dirty_flag = true;
+	mutex mtxDirty;
+
+	string inputData = "";
+	mutex mtxString;
+
+	deque<string> printQue;
+	mutex mtxPrint;
+
+	thread inputThr, outputThr, printThr;
+	
+public:
+	~CustomClient()
+	{
+		if (inputThr.joinable()) inputThr.join();
+		if (outputThr.joinable()) outputThr.join();
+		if (printThr.joinable()) printThr.join();
+	}
+
+	void AssignThreads()
+	{
+		inputThr = thread([&]()
+			{
+				while (IsLoop())
+				{
+					if (GetForegroundWindow() == GetConsoleWindow()) {
+						int c = _getch();
+
+						scoped_lock<mutex, mutex> lock(mtxDirty, mtxString);						
+						if ((int)c == 13) // Enter
+						{
+							if (inputData == "exit")
+							{
+								loop.store(false, memory_order_release);
+							}
+							MessageAll(inputData);
+							inputData.clear();
+						}
+						else if ((int)c == 8 && !inputData.empty()) // backspace
+						{
+							inputData.erase(inputData.end() - 1);
+						}
+						else if ((int)c != 27) // Prevent ESC input.
+						{
+							inputData += c;
+						}
+
+						dirty_flag = true;
+					}
+				}
+			});
+
+		printThr = thread([&]()
+			{
+				while (IsLoop())
+				{
+					scoped_lock<mutex, mutex, mutex> lock(mtxDirty, mtxString, mtxPrint);
+					if (dirty_flag) {
+						system("cls");
+						cout << "Input: " << inputData << '\n';
+
+						for (auto iter = printQue.begin(); iter != printQue.end(); ++iter)
+						{
+							cout << *iter << endl;
+						}
+						dirty_flag = false;
+					}
+				}
+			});
+	}
+
+	bool IsLoop()
+	{
+		return loop.load(memory_order_acquire);
+	}
+
+	void AppendMsg(const string& s)
+	{
+		lock_guard<mutex> lock(mtxPrint);
+		printQue.push_back(s);
+	}
+
 	void PingServer()
 	{
 		net::message<CustomMsgTypes> msg;
@@ -29,10 +115,13 @@ public:
 		Send(msg);
 	}
 
-	void MessageAll()
+	void MessageAll(const string& s)
 	{
 		net::message<CustomMsgTypes> msg;
 		msg.header.id = CustomMsgTypes::MessageAll;
+
+		if(s.size() > 0)
+			msg << s;
 		Send(msg);
 	}
 };
@@ -41,27 +130,12 @@ int main()
 {
 	CustomClient client;
 	client.Connect("127.0.0.1", 5505);
-
-	bool key[3] = { false, false, false };
-	bool old_key[3] = { false, false, false };
 	
-	bool bQuit = false;
-	while (!bQuit)
+	while (true)
 	{
-		// If console is focused
-		if (GetForegroundWindow() == GetConsoleWindow())
-		{
-			key[0] = GetAsyncKeyState('1') & 0x8000;
-			key[1] = GetAsyncKeyState('2') & 0x8000;
-			key[2] = GetAsyncKeyState('3') & 0x8000;
-		}
-
-		if (key[0] && !old_key[0]) client.PingServer();
-		if (key[1] && !old_key[1]) client.MessageAll();
-		if (key[2] && !old_key[2]) bQuit = true;
-
-		for (int i = 0; i < 3; ++i) 
-			old_key[i] = key[i];
+		// Client exit..
+		if (!client.IsLoop())
+			break;
 
 		if (client.IsConnected())
 		{
@@ -74,6 +148,7 @@ int main()
 				case CustomMsgTypes::ServerAccept:
 				{
 					std::cout << "Server Accepted Connection.\n";
+					client.AssignThreads();
 				}
 				break;
 
@@ -90,8 +165,9 @@ int main()
 				{
 					// Server has responded to ping request
 					uint32_t clientID;
-					msg >> clientID;
-					std::cout << "Hello from [" << clientID << "]\n";
+					string message;
+					msg >> clientID >> message;
+					client.AppendMsg(message);
 				}
 				break;
 				}
@@ -100,7 +176,7 @@ int main()
 		else
 		{
 			std::cout << "Server Down\n";
-			bQuit = true;
+			client.loop.store(false, memory_order_release);
 		}
 	}
 }
