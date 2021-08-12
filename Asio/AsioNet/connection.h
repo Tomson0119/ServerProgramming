@@ -192,7 +192,7 @@ namespace net
 		{
 			// Read from messages out buffer and send it to connected object.
 			asio::async_write(m_socket,
-				asio::buffer(&m_messagesOut.front().header, sizeof(message_header<T>)),
+				asio::const_buffer(&m_messagesOut.front().header, sizeof(message_header<T>)),
 				[this](std::error_code ec, std::size_t size)
 				{
 					if (!ec)
@@ -225,7 +225,7 @@ namespace net
 		void WriteBody()
 		{
 			asio::async_write(m_socket,
-				asio::buffer(m_messagesOut.front().body.data(), m_messagesOut.front().body.size()),
+				asio::const_buffer(m_messagesOut.front().body.data(), m_messagesOut.front().body.size()),
 				[this](std::error_code ec, std::size_t size)
 				{
 					if (!ec)
