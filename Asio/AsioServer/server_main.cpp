@@ -20,7 +20,6 @@ public:
 	CustomServer(uint16_t port)
 		: net::server_side<CustomMsgTypes>(port)
 	{
-
 	}
 
 	virtual ~CustomServer()
@@ -58,16 +57,21 @@ protected:
 
 		case CustomMsgTypes::MessageAll:
 		{
-			string s;
-			msg >> s;
+			uint16_t len;
+			msg >> len;
 
-			std::cout << "[" << client->GetID() << "] Message All -> " << s << '\n';			
+			string s;
+			s.resize(len);
+			msg.decodeString(s, len);
+
+			std::cout << "[" << client->GetID() << "] Message All -> " << s << "\n";
 
 			net::message<CustomMsgTypes> newMsg;
 			newMsg.header.id = CustomMsgTypes::ServerMessage;
-			newMsg << client->GetID() << s;
+			newMsg.encodeString(s, len);
+			newMsg << len << client->GetID();
 
-			MessageAllClients(newMsg, client);
+			MessageAllClients(newMsg, nullptr);
 		}
 		break;
 		}
@@ -78,9 +82,6 @@ int main()
 {
 	CustomServer server(ServerPort);
 	server.Start();
-
-	bool current_key[3] = { false, false, false };
-	bool previous_key[3] = { false, false, false };
 
 	while (1)
 	{

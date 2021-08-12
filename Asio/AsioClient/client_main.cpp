@@ -1,6 +1,7 @@
 #include <netCommon.h>
 #include <iostream>
 #include <conio.h>
+#include <fstream>
 
 using namespace std;
 
@@ -33,7 +34,11 @@ private:
 	thread inputThr, outputThr, printThr;
 	
 public:
-	~CustomClient()
+	CustomClient()
+	{
+	}
+
+	virtual ~CustomClient()
 	{
 		if (inputThr.joinable()) inputThr.join();
 		if (outputThr.joinable()) outputThr.join();
@@ -56,6 +61,7 @@ public:
 							{
 								loop.store(false, memory_order_release);
 							}
+
 							MessageAll(inputData);
 							inputData.clear();
 						}
@@ -81,7 +87,6 @@ public:
 					if (dirty_flag) {
 						system("cls");
 						cout << "Input: " << inputData << '\n';
-
 						for (auto iter = printQue.begin(); iter != printQue.end(); ++iter)
 						{
 							cout << *iter << endl;
@@ -99,7 +104,9 @@ public:
 
 	void AppendMsg(const string& s)
 	{
-		lock_guard<mutex> lock(mtxPrint);
+		cout << s << endl;
+		scoped_lock<mutex,mutex> lock(mtxDirty, mtxPrint);
+		dirty_flag = true;
 		printQue.push_back(s);
 	}
 
@@ -120,8 +127,9 @@ public:
 		net::message<CustomMsgTypes> msg;
 		msg.header.id = CustomMsgTypes::MessageAll;
 
-		if(s.size() > 0)
-			msg << s;
+		msg.encodeString(s, s.size());
+		msg << (uint16_t)s.size();
+
 		Send(msg);
 	}
 };
@@ -129,7 +137,7 @@ public:
 int main()
 {
 	CustomClient client;
-	client.Connect("127.0.0.1", 5505);
+	client.Connect("14.38.228.31", 5505);
 	
 	while (true)
 	{
@@ -165,9 +173,14 @@ int main()
 				{
 					// Server has responded to ping request
 					uint32_t clientID;
+					uint16_t len;
+					msg >> clientID >> len;
+
 					string message;
-					msg >> clientID >> message;
-					client.AppendMsg(message);
+					message.resize(len);
+					msg.decodeString(message, len);
+
+					client.AppendMsg("[" + to_string(clientID) + "]" + message);
 				}
 				break;
 				}
