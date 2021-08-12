@@ -32,7 +32,9 @@ private:
 	mutex mtxPrint;
 
 	thread inputThr, outputThr, printThr;
-	
+
+	string userName;
+
 public:
 	CustomClient()
 	{
@@ -43,6 +45,12 @@ public:
 		if (inputThr.joinable()) inputThr.join();
 		if (outputThr.joinable()) outputThr.join();
 		if (printThr.joinable()) printThr.join();
+	}
+
+	void SetUserName()
+	{
+		cout << "Insert your name: ";
+		getline(cin, userName);
 	}
 
 	void AssignThreads()
@@ -104,10 +112,13 @@ public:
 
 	void AppendMsg(const string& s)
 	{
-		cout << s << endl;
 		scoped_lock<mutex,mutex> lock(mtxDirty, mtxPrint);
 		dirty_flag = true;
+
 		printQue.push_back(s);
+		
+		if (printQue.size() > 10)
+			printQue.pop_front();
 	}
 
 	void PingServer()
@@ -129,6 +140,8 @@ public:
 
 		msg.encodeString(s, s.size());
 		msg << (uint16_t)s.size();
+		msg.encodeString(userName, userName.size());
+		msg << (uint16_t)userName.size();
 
 		Send(msg);
 	}
@@ -156,6 +169,7 @@ int main()
 				case CustomMsgTypes::ServerAccept:
 				{
 					std::cout << "Server Accepted Connection.\n";
+					client.SetUserName();
 					client.AssignThreads();
 				}
 				break;
@@ -172,15 +186,21 @@ int main()
 				case CustomMsgTypes::ServerMessage:
 				{
 					// Server has responded to ping request
-					uint32_t clientID;
-					uint16_t len;
-					msg >> clientID >> len;
+					uint16_t userNameLen;
+					msg >> userNameLen;
+
+					string userName;
+					userName.resize(userNameLen);
+					msg.decodeString(userName, userNameLen);
+
+					uint16_t msgLen;
+					msg >> msgLen;
 
 					string message;
-					message.resize(len);
-					msg.decodeString(message, len);
+					message.resize(msgLen);
+					msg.decodeString(message, msgLen);
 
-					client.AppendMsg("[" + to_string(clientID) + "]" + message);
+					client.AppendMsg("[" + userName + "]  :  " + message);
 				}
 				break;
 				}

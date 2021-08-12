@@ -57,6 +57,13 @@ protected:
 
 		case CustomMsgTypes::MessageAll:
 		{
+			uint16_t nameLen;
+			msg >> nameLen;
+
+			string clientName;
+			clientName.resize(nameLen);
+			msg.decodeString(clientName, nameLen);
+
 			uint16_t len;
 			msg >> len;
 
@@ -69,7 +76,9 @@ protected:
 			net::message<CustomMsgTypes> newMsg;
 			newMsg.header.id = CustomMsgTypes::ServerMessage;
 			newMsg.encodeString(s, len);
-			newMsg << len << client->GetID();
+			newMsg << len;
+			newMsg.encodeString(clientName, nameLen);
+			newMsg << nameLen;
 
 			MessageAllClients(newMsg, nullptr);
 		}
