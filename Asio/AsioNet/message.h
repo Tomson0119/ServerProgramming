@@ -1,5 +1,6 @@
 #pragma once
 #include "common.h"
+#include <fstream>
 
 namespace net
 {
@@ -24,7 +25,7 @@ namespace net
 		size_t size() const
 		{
 			// Message size is header's size and all the byte size of data
-			return body.size();
+			return header.size;
 		}
 
 		// Produces description of message
@@ -32,6 +33,28 @@ namespace net
 		{
 			os << "ID: " << int(msg.header.id) << " Size: " << msg.header.size;
 			return os;
+		}
+
+		void encodeString(const std::string& str, size_t length)
+		{
+			size_t i = body.size();
+
+			body.resize(i + length);
+
+			std::memcpy(body.data() + i, str.data(), length);
+
+			header.size = body.size();
+		}
+
+		void decodeString(std::string& str, size_t length)
+		{
+			size_t i = body.size() - length;
+
+			std::memcpy(str.data(), body.data() + i, length);
+
+			body.resize(i);
+
+			header.size = body.size();
 		}
 
 		// Pushes data into the message buffer
@@ -43,15 +66,15 @@ namespace net
 
 			// Cache current size of vector, as this will be the point we insert the data
 			size_t i = msg.body.size();
-			
+
 			// Resize the vector by the size of the data being pushed.
-			msg.body.resize(msg.body.size() + sizeof(DataType));
+			msg.body.resize(i + sizeof(DataType));
 
 			// Physically copy the data into the newly allocated vector space.
 			std::memcpy(msg.body.data() + i, &data, sizeof(DataType));
 
 			// Recalculate the message size
-			msg.header.size = msg.size();
+			msg.header.size = msg.body.size();
 
 			// Return the target message so it can be "chained".
 			return msg;
@@ -59,14 +82,14 @@ namespace net
 
 		// Pops data from the message buffer.
 		template<typename DataType>
-		friend message<T>& operator >>(message<T>& msg, DataType& data)
+		friend message<T>& operator>>(message<T>& msg, DataType& data)
 		{
 			// Check that the type of the data being pushed is trivially copyable
 			static_assert(std::is_standard_layout<DataType>::value, "Target data is too complex");
 			
 			// Cache the location towards the end of the vector where the pulled data starts.
 			size_t i = msg.body.size() - sizeof(DataType);
-
+			
 			// Physically copy the data from the vector into the user variable.
 			std::memcpy(&data, msg.body.data() + i, sizeof(DataType));
 
@@ -75,7 +98,7 @@ namespace net
 			msg.body.resize(i);
 
 			// Recalculate the message size
-			msg.header.size = msg.size();
+			msg.header.size = msg.body.size();
 
 			// Return the target message so it can be "chained".
 			return msg;
