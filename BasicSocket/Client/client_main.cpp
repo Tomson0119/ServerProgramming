@@ -19,15 +19,6 @@ void BlockingTCPSocket()
 		Socket clientSck(SocketType::TCP);
 		clientSck.Bind(EndPoint::Any);
 
-		ifstream ipFile("server_ip.txt");
-		if (!ipFile.is_open())
-		{
-			throw Exception("Can't find file or directory");
-		}
-		string address;
-		ipFile >> address;
-		ipFile.close();
-
 		cout << "Connecting to Server...\n";
 
 		clientSck.Connect(EndPoint("127.0.0.1", Server_port));
