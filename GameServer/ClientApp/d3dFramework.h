@@ -4,6 +4,7 @@
 #include "gameTimer.h"
 #include "dxException.h"
 
+class QueryWindow;
 
 class D3DFramework : public BaseWin<D3DFramework>
 {
@@ -20,6 +21,7 @@ public:
 	float GetAspect() const { return static_cast<float>(mFrameWidth) / mFrameHeight; }
 
 private:
+	bool InitQueryWindow();
 	bool InitDirect3D();
 
 	void CreateD3DDevice();
@@ -103,4 +105,9 @@ protected:
 
 	int mFrameWidth  = 0;
 	int mFrameHeight = 0;
+
+private:
+	std::unique_ptr<QueryWindow> mQueryWindow;
+
+	std::wstring mServerIPAddress = L"";
 };

@@ -1,19 +1,27 @@
 #include "stdafx.h"
 #include "d3dFramework.h"
+#include "queryWindow.h"
 
 D3DFramework::D3DFramework()
 	: mViewPort{ }, mScissorRect{ }, mFenceValues{ }
 {
+	mQueryWindow = std::make_unique<QueryWindow>();
 }
 
 D3DFramework::~D3DFramework()
 {
-	//if(mD3dDevice) WaitUntilGPUComplete();
 	if (mFenceEvent) CloseHandle(mFenceEvent);
 }
 
 bool D3DFramework::InitFramework()
 {
+	if (!InitQueryWindow())
+		return false;
+
+	mQueryWindow->Run();
+	mServerIPAddress = mQueryWindow->GetServerIPAddress();
+	mQueryWindow.release();
+
 	if(!InitWindow(mWndCaption.c_str(), mFrameWidth, mFrameHeight))
 		return false;
 
@@ -57,6 +65,13 @@ void D3DFramework::SetResolution(int width, int height)
 {
 	mFrameWidth = width;
 	mFrameHeight = height;
+}
+
+bool D3DFramework::InitQueryWindow()
+{
+	if (!mQueryWindow->InitWindow())
+		return false;
+	return true;
 }
 
 bool D3DFramework::InitDirect3D()
