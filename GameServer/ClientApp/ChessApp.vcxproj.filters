@@ -69,6 +69,9 @@
     <ClCompile Include="DDSTextureLoader12.cpp">
       <Filter>소스 파일\Common</Filter>
     </ClCompile>
+    <ClCompile Include="queryWindow.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h">
@@ -124,6 +127,9 @@
     </ClInclude>
     <ClInclude Include="DDSTextureLoader12.h">
       <Filter>헤더 파일\Common</Filter>
+    </ClInclude>
+    <ClInclude Include="queryWindow.h">
+      <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
