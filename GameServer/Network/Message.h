@@ -4,7 +4,8 @@
 
 enum class MsgType
 {
-	MSG_MOVE
+	MSG_MOVE,
+	MSG_DISCONNECT
 };
 
 class Message
