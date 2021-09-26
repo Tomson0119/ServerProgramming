@@ -17,6 +17,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int mCmdShow)
 #endif
 	try
 	{
+		//_CrtSetBreakAlloc(100);
 		GameFramework app;
 		app.SetResolution(1000, 800);
 
@@ -24,9 +25,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int mCmdShow)
 			return 0;		
 		app.Run();
 	}
-	catch (DxException& error)
+	catch (std::exception& ex)
 	{
-		MessageBox(nullptr, error.ToString().c_str(), L"HR ERROR", MB_OK);
+		MessageBoxA(NULL, ex.what(), "ERROR", MB_OK);
 		return 0;
 	}
 }
