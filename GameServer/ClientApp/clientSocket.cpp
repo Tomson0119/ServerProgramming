@@ -9,3 +9,8 @@ ClientSocket::ClientSocket(Protocol type)
 ClientSocket::~ClientSocket()
 {
 }
+
+void ClientSocket::Disconnect()
+{
+	Send(Message(MsgType::MSG_DISCONNECT));
+}
