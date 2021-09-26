@@ -454,6 +454,7 @@ LRESULT D3DFramework::OnProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		return MAKELRESULT(0, MNC_CLOSE);
 
 	case WM_DESTROY:
+		if (mClientSck) mClientSck->Disconnect();
 		PostQuitMessage(0);
 		return 0;
 

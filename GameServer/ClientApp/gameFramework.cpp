@@ -95,6 +95,7 @@ void GameFramework::OnProcessKeyInput(UINT uMsg, WPARAM wParam, LPARAM lParam)
 				mScenes.pop();
 
 			if (mScenes.empty()) {
+				mClientSck->Disconnect();
 				PostQuitMessage(0);
 				return;
 			}
