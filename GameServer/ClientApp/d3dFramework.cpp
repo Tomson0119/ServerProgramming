@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "d3dFramework.h"
 #include "queryWindow.h"
+#include "clientSocket.h"
 
 D3DFramework::D3DFramework()
 	: mViewPort{ }, mScissorRect{ }, mFenceValues{ }
@@ -15,12 +16,11 @@ D3DFramework::~D3DFramework()
 
 bool D3DFramework::InitFramework()
 {
-	if (!InitQueryWindow())
+	if (!InitAndRunQueryWindow())
 		return false;
 
-	mQueryWindow->Run();
-	mServerIPAddress = mQueryWindow->GetServerIPAddress();
-	mQueryWindow.release();
+	if (!InitSocket())
+		return false;
 
 	if(!InitWindow(mWndCaption.c_str(), mFrameWidth, mFrameHeight))
 		return false;
@@ -67,10 +67,21 @@ void D3DFramework::SetResolution(int width, int height)
 	mFrameHeight = height;
 }
 
-bool D3DFramework::InitQueryWindow()
+bool D3DFramework::InitAndRunQueryWindow()
 {
 	if (!mQueryWindow->InitWindow())
 		return false;
+
+	mQueryWindow->Run();
+	mServerIPAddress = mQueryWindow->GetServerIPAddress();
+
+	return true;
+}
+
+bool D3DFramework::InitSocket()
+{
+	mClientSck = std::make_unique<ClientSocket>(Protocol::TCP);
+	mClientSck->Connect(EndPoint(mServerIPAddress, SERVER_PORT));
 	return true;
 }
 

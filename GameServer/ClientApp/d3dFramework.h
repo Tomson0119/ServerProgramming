@@ -5,6 +5,7 @@
 #include "dxException.h"
 
 class QueryWindow;
+class ClientSocket;
 
 class D3DFramework : public BaseWin<D3DFramework>
 {
@@ -21,7 +22,8 @@ public:
 	float GetAspect() const { return static_cast<float>(mFrameWidth) / mFrameHeight; }
 
 private:
-	bool InitQueryWindow();
+	bool InitAndRunQueryWindow();
+	bool InitSocket();
 	bool InitDirect3D();
 
 	void CreateD3DDevice();
@@ -106,8 +108,10 @@ protected:
 	int mFrameWidth  = 0;
 	int mFrameHeight = 0;
 
-private:
+protected:
 	std::unique_ptr<QueryWindow> mQueryWindow;
-
-	std::wstring mServerIPAddress = L"";
+	std::unique_ptr<ClientSocket> mClientSck;
+	
+	std::string mServerIPAddress = "";
+	static const short SERVER_PORT = 5505;
 };
