@@ -49,7 +49,7 @@ LRESULT QueryWindow::OnProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		hdc = BeginPaint(m_hwnd, &ps);
 		font = CreateFont(30, 0, 0, 0, FW_BOLD, 0, 0, 0, ANSI_CHARSET, 0, 0, 0, 0, NULL);
 		oldfont = (HFONT)SelectObject(hdc, font);
-		TextOut(hdc, mWidth/2 - 100, mHeight/3, text.c_str(), text.size());
+		TextOut(hdc, mWidth/2 - 100, mHeight/3, text.c_str(), (int)text.size());
 		EndPaint(m_hwnd, &ps);
 		break;
 
@@ -57,7 +57,7 @@ LRESULT QueryWindow::OnProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		if (LOWORD(wParam) == 1)
 		{
 			mServerIPAddress.resize(GetWindowTextLength(mTextBox) + 1);
-			int len = GetWindowText(mTextBox, (LPWSTR)mServerIPAddress.c_str(), mServerIPAddress.size());
+			int len = GetWindowTextA(mTextBox, (LPSTR)mServerIPAddress.c_str(), (int)mServerIPAddress.size());
 			if (len != 0)
 			{
 				PostMessage(m_hwnd, WM_CLOSE, 0, 0);

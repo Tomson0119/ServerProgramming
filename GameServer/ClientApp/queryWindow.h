@@ -11,7 +11,7 @@ public:
 	bool InitWindow();
 	void Run();
 
-	std::wstring GetServerIPAddress() const { return mServerIPAddress; }
+	std::string GetServerIPAddress() const { return mServerIPAddress; }
 
 public:
 	virtual PCWSTR ClassName() const { return L"Query Window"; }
@@ -25,5 +25,5 @@ private:
 
 	HWND mTextBox{};
 
-	std::wstring mServerIPAddress = L"";
+	std::string mServerIPAddress = "";
 };
