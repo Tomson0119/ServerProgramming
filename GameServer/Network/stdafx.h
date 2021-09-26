@@ -13,3 +13,5 @@
 #include <exception>
 
 #include "NetException.h"
+
+using ushort_t = unsigned short;
