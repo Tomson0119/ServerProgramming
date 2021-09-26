@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.31613.86
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ChessApp", "ChessApp.vcxproj", "{3A61944B-2D76-4770-87BC-CB667984A52B}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Network", "..\Network\Network.vcxproj", "{819E1CC8-B6E9-472E-A653-90056803488C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +23,14 @@ Global
 		{3A61944B-2D76-4770-87BC-CB667984A52B}.Release|x64.Build.0 = Release|x64
 		{3A61944B-2D76-4770-87BC-CB667984A52B}.Release|x86.ActiveCfg = Release|Win32
 		{3A61944B-2D76-4770-87BC-CB667984A52B}.Release|x86.Build.0 = Release|Win32
+		{819E1CC8-B6E9-472E-A653-90056803488C}.Debug|x64.ActiveCfg = Debug|x64
+		{819E1CC8-B6E9-472E-A653-90056803488C}.Debug|x64.Build.0 = Debug|x64
+		{819E1CC8-B6E9-472E-A653-90056803488C}.Debug|x86.ActiveCfg = Debug|Win32
+		{819E1CC8-B6E9-472E-A653-90056803488C}.Debug|x86.Build.0 = Debug|Win32
+		{819E1CC8-B6E9-472E-A653-90056803488C}.Release|x64.ActiveCfg = Release|x64
+		{819E1CC8-B6E9-472E-A653-90056803488C}.Release|x64.Build.0 = Release|x64
+		{819E1CC8-B6E9-472E-A653-90056803488C}.Release|x86.ActiveCfg = Release|Win32
+		{819E1CC8-B6E9-472E-A653-90056803488C}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

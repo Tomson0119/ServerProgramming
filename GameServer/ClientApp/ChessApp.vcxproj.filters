@@ -72,6 +72,9 @@
     <ClCompile Include="queryWindow.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="clientSocket.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h">
@@ -129,6 +132,12 @@
       <Filter>헤더 파일\Common</Filter>
     </ClInclude>
     <ClInclude Include="queryWindow.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="netcommon.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="clientSocket.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
