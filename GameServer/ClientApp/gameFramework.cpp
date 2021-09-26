@@ -110,12 +110,21 @@ void GameFramework::OnProcessKeyInput(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_KEYDOWN:
 		if (0x25 <= wParam && wParam <= 0x28)
 		{
-			POINT playerPos = mScenes.top()->GetPlayerCoord();
 			Message msg(MsgType::MSG_MOVE);
 			msg.Push((uint8_t)wParam);
-			msg.Push((uint8_t)playerPos.x);
-			msg.Push((uint8_t)playerPos.y);
+			msg.Push((uint8_t)mScenes.top()->mPlayerPosCol);
+			msg.Push((uint8_t)mScenes.top()->mPlayerPosRow);
 			mClientSck->Send(msg);
+
+			Message fromServer = mClientSck->Receive();
+			if (fromServer.mMsgType == MsgType::MSG_MOVE)
+			{
+				uint8_t row, col;
+				fromServer.Pop(col);
+				fromServer.Pop(row);
+				mScenes.top()->mPlayerPosCol = (int)col;
+				mScenes.top()->mPlayerPosRow = (int)row;
+			}
 		}
 		break;
 	}
