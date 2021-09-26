@@ -28,7 +28,7 @@ public:
 		mPackets.resize(currSize + dataSize);
 		std::memcpy(mPackets.data() + currSize, &data, dataSize);
 
-		size = mPackets.size();
+		size = (ushort_t)mPackets.size();
 	}
 
 	template<typename T>
