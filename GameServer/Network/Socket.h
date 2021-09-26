@@ -11,6 +11,7 @@ enum class Protocol
 };
 
 class EndPoint;
+class Message;
 
 class Socket
 {
@@ -26,10 +27,15 @@ public:
 	
 	void Connect(const EndPoint& ep);
 
-	void Send();
-	void Receive();
+	void Send(Message& msg);
+	Message Receive();
 
+private:
+	Message CreateMessage(DWORD bytes);
 
 private:
 	SOCKET mSocket{};
+
+	static const int MaxRecvLength = 1024;
+	char mReceiveBuffer[MaxRecvLength];
 };

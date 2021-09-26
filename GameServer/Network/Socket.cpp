@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "Socket.h"
 #include "EndPoint.h"
+#include "Message.h"
 
 WSAInit gWSAInstance;
 
@@ -63,23 +64,40 @@ void Socket::Connect(const EndPoint& ep)
 	}
 }
 
-void Socket::Send()
+void Socket::Send(Message& msg)
 {
+	auto packets = msg.GetSendPackets();
+
 	DWORD bytes;
 	WSABUF buf{};
-	buf.buf;
-	buf.len;
+	buf.buf = reinterpret_cast<char*>(packets.data());
+	buf.len = static_cast<ULONG>(packets.size());
 
 	if (WSASend(mSocket, &buf, 1, &bytes, 0, 0, 0) != 0)
 		throw NetException();
 }
 
-void Socket::Receive()
+Message Socket::Receive()
 {
 	DWORD bytes;
 	DWORD flag = 0;
 	WSABUF buf{};
-	buf.buf;
-	buf.len;
-	WSARecv(mSocket, &buf, 1, &bytes, &flag, 0, 0);
+	buf.buf = mReceiveBuffer;
+	buf.len = MaxRecvLength;
+
+	if (WSARecv(mSocket, &buf, 1, &bytes, &flag, 0, 0) != 0)
+		throw NetException();
+
+	return CreateMessage(bytes);
+}
+
+Message Socket::CreateMessage(DWORD bytes)
+{
+	Message msg{};
+	msg.size = *((ushort_t*)(mReceiveBuffer + 1));
+	msg.mMsgType = static_cast<MsgType>(mReceiveBuffer[2]);
+	msg.mPackets.resize(msg.size);
+	
+	std::memcpy(msg.mPackets.data(), mReceiveBuffer + 3, msg.size);
+	return msg;
 }
