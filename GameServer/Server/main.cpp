@@ -5,6 +5,14 @@ using namespace std;
 
 const short SERVER_PORT = 5505;
 
+struct PlayerCoord
+{
+	uint8_t Row;
+	uint8_t Col;
+};
+
+PlayerCoord playerCoord{ 0,0 };
+
 bool HandleClientMessage(Socket& client, Message& msg)
 {
 	switch (msg.mMsgType)
@@ -13,26 +21,23 @@ bool HandleClientMessage(Socket& client, Message& msg)
 	{
 		const int MaxBoardSize = 8;
 
-		uint8_t row, col, command;
-		msg.Pop(row);
-		msg.Pop(col);
+		uint8_t command;
 		msg.Pop(command);
 
-		cout << "Message Move:\n";
-		printf("Row: %d  Column: %d  Command: %d\n", row, col, command);
+		printf("[Message Move] Command: 0x%x\n", command);
 
-		if (col > 0 && command == VK_LEFT)
-			col -= 1;
-		else if (col < MaxBoardSize - 1 && command == VK_RIGHT)
-			col += 1;
-		else if (row > 0 && command == VK_DOWN)
-			row -= 1;
-		else if (row < MaxBoardSize - 1 && command == VK_UP)
-			row += 1;
+		if (playerCoord.Col > 0 && command == VK_LEFT)
+			playerCoord.Col -= 1;
+		else if (playerCoord.Col < MaxBoardSize - 1 && command == VK_RIGHT)
+			playerCoord.Col += 1;
+		else if (playerCoord.Row > 0 && command == VK_DOWN)
+			playerCoord.Row -= 1;
+		else if (playerCoord.Row < MaxBoardSize - 1 && command == VK_UP)
+			playerCoord.Row += 1;
 
 		Message newMsg(MsgType::MSG_MOVE);
-		newMsg.Push((uint8_t)row);
-		newMsg.Push((uint8_t)col);
+		newMsg.Push(playerCoord.Row);
+		newMsg.Push(playerCoord.Col);
 		client.Send(newMsg);
 		break;
 	}
