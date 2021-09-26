@@ -1,5 +1,8 @@
 #pragma once
 
+// Network 헤더 파일.
+#include "netcommon.h"
+
 #ifndef _DEBUG
 #define _DEBUG
 #else
