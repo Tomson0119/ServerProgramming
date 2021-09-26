@@ -26,12 +26,11 @@ private:
 	virtual void Draw() override;
 
 private:
-	void OnPreciseKeyInput();
-
-private:
 	std::unique_ptr<Camera> mCamera;
 	std::stack<std::unique_ptr<GameScene>> mScenes;
 
 	const float mCameraRadius = 15.0f;
 	POINT mLastMousePos = { 0,0 };
+
+	uint8_t mUserInput = 0;
 };

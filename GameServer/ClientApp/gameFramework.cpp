@@ -104,36 +104,18 @@ void GameFramework::OnProcessKeyInput(UINT uMsg, WPARAM wParam, LPARAM lParam)
 			break;
 		}
 		break;
+
+	case WM_KEYDOWN:
+		if (0x25 <= wParam && wParam <= 0x28)
+			mUserInput = wParam;
+		break;
 	}
 	if (!mScenes.empty()) mScenes.top()->OnProcessKeyInput(uMsg, wParam, lParam);
-}
-
-void GameFramework::OnPreciseKeyInput()
-{
-	const float elapsed = mTimer.ElapsedTime();
-
-	if (GetAsyncKeyState('W') & 0x8000) {
-		//mCamera->Walk(5.0f * elapsed);
-	}
-
-	if (GetAsyncKeyState('A') & 0x8000) {
-		//mCamera->Strafe(-5.0f * elapsed);
-	}
-
-	if (GetAsyncKeyState('S') & 0x8000) {
-		//mCamera->Walk(-5.0f * elapsed);
-	}
-
-	if (GetAsyncKeyState('D') & 0x8000) {
-		//mCamera->Strafe(5.0f * elapsed);
-	}
 }
 
 void GameFramework::Update()
 {
 	D3DFramework::UpdateFrameStates();
-	
-	OnPreciseKeyInput();
 
 	mCamera->Update(mTimer.ElapsedTime());
 	if (!mScenes.empty()) {
