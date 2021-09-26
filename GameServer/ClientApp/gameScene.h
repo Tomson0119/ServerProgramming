@@ -33,7 +33,6 @@ public:
 	void OnPreciseKeyInput(const GameTimer& timer) { }
 
 	XMFLOAT4 GetFrameColor() const { return mFrameColor; }
-	POINT GetPlayerCoord() const { return { mPlayerPosCol, mPlayerPosRow }; }
 
 private:
 	void BuildRootSignature(ID3D12Device* device);
@@ -56,8 +55,8 @@ private:
 	
 	GameObject* mPlayer = nullptr;
 
+public:
 	const int mMaxBoardSize = 8;
-
 	int mPlayerPosRow = 0;
 	int mPlayerPosCol = 0;
 };
