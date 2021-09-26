@@ -14,4 +14,6 @@ public:
 	std::wstring mFuncName;
 	std::wstring mFileName;
 	int mLineNumber = -1;
+
+	char errorMsg[1024]{};
 };

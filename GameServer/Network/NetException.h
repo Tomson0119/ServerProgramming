@@ -10,4 +10,5 @@ public:
 
 private:
 	std::wstring errorInfo;
+	char errorMsg[1024]{};
 };

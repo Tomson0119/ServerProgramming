@@ -24,8 +24,7 @@ NetException::~NetException()
 
 const char* NetException::what() const
 {
-	char msg[1024];
 	int len = WideCharToMultiByte(CP_ACP, 0, errorInfo.c_str(), -1, NULL, 0, NULL, NULL);
-	WideCharToMultiByte(CP_ACP, 0, errorInfo.c_str(), -1, msg, len, NULL, NULL);
-	return msg;
+	WideCharToMultiByte(CP_ACP, 0, errorInfo.c_str(), -1, (LPSTR)errorMsg, len, NULL, NULL);
+	return errorMsg;
 }
