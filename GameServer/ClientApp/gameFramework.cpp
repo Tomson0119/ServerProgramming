@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "gameFramework.h"
 #include "camera.h"
+#include "clientSocket.h"
 
 using namespace std;
 
@@ -107,7 +108,14 @@ void GameFramework::OnProcessKeyInput(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	case WM_KEYDOWN:
 		if (0x25 <= wParam && wParam <= 0x28)
-			mUserInput = wParam;
+		{
+			POINT playerPos = mScenes.top()->GetPlayerCoord();
+			Message msg(MsgType::MSG_MOVE);
+			msg.Push((uint8_t)wParam);
+			msg.Push((uint8_t)playerPos.x);
+			msg.Push((uint8_t)playerPos.y);
+			mClientSck->Send(msg);
+		}
 		break;
 	}
 	if (!mScenes.empty()) mScenes.top()->OnProcessKeyInput(uMsg, wParam, lParam);
