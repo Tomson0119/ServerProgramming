@@ -30,7 +30,7 @@ public:
 	void OnProcessMouseMove(WPARAM buttonState) {}
 	void OnProcessKeyInput(UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-	void OnPreciseKeyInput(const GameTimer& timer);
+	void OnPreciseKeyInput(const GameTimer& timer) { }
 
 	XMFLOAT4 GetFrameColor() const { return mFrameColor; }
 
@@ -59,6 +59,4 @@ private:
 
 	int mPlayerPosRow = 0;
 	int mPlayerPosCol = 0;
-
-	std::unordered_map<int, bool> mKeyStates;
 };

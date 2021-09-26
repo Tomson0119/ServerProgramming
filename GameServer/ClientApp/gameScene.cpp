@@ -71,40 +71,6 @@ void GameScene::OnProcessKeyInput(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 }
 
-void GameScene::OnPreciseKeyInput(const GameTimer& timer)
-{
-	if (GetAsyncKeyState(VK_RIGHT) & 0x8000 && !mKeyStates[VK_RIGHT])
-	{
-		if(mPlayerPosCol < mMaxBoardSize - 1)
-			mPlayerPosCol += 1;
-		mKeyStates[VK_RIGHT] = true;
-	}
-	if (GetAsyncKeyState(VK_LEFT) & 0x8000 && !mKeyStates[VK_LEFT])
-	{
-		if (mPlayerPosCol > 0)
-			mPlayerPosCol -= 1;
-		mKeyStates[VK_LEFT] = true;
-	}
-	if (GetAsyncKeyState(VK_UP) & 0x8000 && !mKeyStates[VK_UP])
-	{
-		if (mPlayerPosRow < mMaxBoardSize - 1)
-			mPlayerPosRow += 1;
-		mKeyStates[VK_UP] = true;
-	}
-	if (GetAsyncKeyState(VK_DOWN) & 0x8000 && !mKeyStates[VK_DOWN])
-	{
-		if (mPlayerPosRow > 0)
-			mPlayerPosRow -= 1;
-		mKeyStates[VK_DOWN] = true;
-	}
-
-	for (auto& [key, state] : mKeyStates)
-	{
-		if(!GetAsyncKeyState(key) && state) 
-			state = false;
-	}
-}
-
 void GameScene::BuildRootSignature(ID3D12Device* device)
 {
 	D3D12_DESCRIPTOR_RANGE descRanges[2];
