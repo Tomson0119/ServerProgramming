@@ -112,8 +112,6 @@ void GameFramework::OnProcessKeyInput(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		{
 			Message msg(MsgType::MSG_MOVE);
 			msg.Push((uint8_t)wParam);
-			msg.Push((uint8_t)mScenes.top()->mPlayerPosCol);
-			msg.Push((uint8_t)mScenes.top()->mPlayerPosRow);
 			mClientSck->Send(msg);
 
 			Message fromServer = mClientSck->Receive();
