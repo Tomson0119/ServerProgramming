@@ -4,3 +4,4 @@
 #include <Socket.h>
 #include <EndPoint.h>
 #include <NetException.h>
+#include <Message.h>
