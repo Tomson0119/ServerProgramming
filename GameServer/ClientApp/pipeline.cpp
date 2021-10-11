@@ -51,7 +51,6 @@ void Pipeline::BuildPipeline(
 
 void Pipeline::BuildConstantBuffer(ID3D12Device* device)
 {
-	std::cout << "BuildObjectCB\n";
 	mObjectCB = std::make_unique<ConstantBuffer<ObjectConstants>>(device, (UINT)mRenderObjects.size());
 }
 
