@@ -151,9 +151,13 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="Server.cpp" />
+    <ClCompile Include="Session.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common.h" />
+    <ClInclude Include="Server.h" />
+    <ClInclude Include="Session.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Network\Network.vcxproj">

@@ -33,6 +33,12 @@
     <ClInclude Include="Message.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
+    <ClInclude Include="WSAOverlappedEx.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="PacketTypes.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Socket.cpp">

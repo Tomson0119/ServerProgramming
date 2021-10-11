@@ -146,9 +146,11 @@
     <ClInclude Include="EndPoint.h" />
     <ClInclude Include="Message.h" />
     <ClInclude Include="NetException.h" />
+    <ClInclude Include="PacketTypes.h" />
     <ClInclude Include="Socket.h" />
     <ClInclude Include="stdafx.h" />
     <ClInclude Include="WSAInit.h" />
+    <ClInclude Include="WSAOverlappedEx.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="EndPoint.cpp">
