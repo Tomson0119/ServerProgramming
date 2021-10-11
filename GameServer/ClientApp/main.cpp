@@ -17,7 +17,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int mCmdShow)
 #endif
 	try
 	{
-		//_CrtSetBreakAlloc(100);
 		GameFramework app;
 		app.SetResolution(1000, 800);
 
