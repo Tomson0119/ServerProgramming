@@ -31,6 +31,4 @@ private:
 
 	const float mCameraRadius = 15.0f;
 	POINT mLastMousePos = { 0,0 };
-
-	uint8_t mUserInput = 0;
 };
