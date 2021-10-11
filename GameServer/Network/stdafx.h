@@ -11,6 +11,8 @@
 #include <string>
 #include <algorithm>
 #include <exception>
+#include <array>
+#include <unordered_map>
 
 #include "NetException.h"
 
