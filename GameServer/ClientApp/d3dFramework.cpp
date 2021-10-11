@@ -39,6 +39,12 @@ void D3DFramework::Run()
 
 	while (msg.message != WM_QUIT)
 	{
+		// For Overlapped IO 
+		MsgWaitForMultipleObjectsEx(
+			0, 0,
+			INFINITE, QS_ALLINPUT,
+			MWMO_INPUTAVAILABLE | MWMO_ALERTABLE);			
+
 		// 윈도우 메세지 처리
 		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
 		{
@@ -48,17 +54,18 @@ void D3DFramework::Run()
 		else  // 타이머 및 Framework 업데이트
 		{
 			mTimer.Tick();
-			
+
 			if (!mPaused) {
 				Update();
 				Draw();
 			}
 			else
 			{
-				Sleep(100);
+				SleepEx(100, true);
 			}
 		}
 	}
+	
 }
 
 void D3DFramework::SetResolution(int width, int height)
@@ -81,7 +88,8 @@ bool D3DFramework::InitAndRunQueryWindow()
 bool D3DFramework::InitSocket()
 {
 	mClientSck = std::make_unique<ClientSocket>(Protocol::TCP);
-	mClientSck->Connect(EndPoint(mServerIPAddress, SERVER_PORT));
+	mClientSck->Connect(EndPoint("127.0.0.1", SERVER_PORT));
+	mClientSck->RecvMsg();
 	return true;
 }
 
