@@ -6,23 +6,25 @@
 WSAInit gWSAInstance;
 
 Socket::Socket(Protocol type)
+	: mSocket{}, mReceiveBuffer{}
 {
 	if (!gWSAInstance.Init())
 		throw NetException();
-	
+
 	switch (type)
 	{
 	case Protocol::TCP:
-		mSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, 0, 0, 0);
+		mSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, 0, 0, WSA_FLAG_OVERLAPPED);
 		break;
 
 	case Protocol::UDP:
-		mSocket = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, 0, 0, 0);
+		mSocket = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, 0, 0, WSA_FLAG_OVERLAPPED);
 		break;
 	}
 }
 
 Socket::Socket(SOCKET sck)
+	: mReceiveBuffer{}
 {
 	mSocket = sck;
 }
@@ -44,14 +46,14 @@ void Socket::Listen()
 		throw NetException();
 }
 
-Socket Socket::Accept(EndPoint& ep)
+SOCKET Socket::Accept(EndPoint& ep)
 {
 	INT addr_len = (INT)sizeof(ep.address);
 	SOCKET sck = WSAAccept(mSocket, reinterpret_cast<sockaddr*>(&ep.address), &addr_len, 0, 0);
 	
 	if (sck == INVALID_SOCKET)
 		throw NetException();
-	return Socket(sck);
+	return sck;
 }
 
 void Socket::Connect(const EndPoint& ep)
@@ -64,40 +66,28 @@ void Socket::Connect(const EndPoint& ep)
 	}
 }
 
-void Socket::Send(Message& msg)
+void Socket::Send(WSAOVERLAPPEDEX& overlapped)
 {
-	auto packets = msg.GetSendPackets();
+	DWORD bytes = 0;
 
-	DWORD bytes;
-	WSABUF buf{};
-	buf.buf = reinterpret_cast<char*>(packets.data());
-	buf.len = static_cast<ULONG>(packets.size());
-
-	if (WSASend(mSocket, &buf, 1, &bytes, 0, 0, 0) != 0)
-		throw NetException();
+	if (WSASend(mSocket,
+		&overlapped.WSABuffer, 1, &bytes, 0,
+		&overlapped, SendRoutine) != 0)
+	{
+		if (WSAGetLastError() != WSA_IO_PENDING)
+			throw NetException();
+	}
 }
 
-Message Socket::Receive()
+void Socket::Recv(WSAOVERLAPPEDEX& overlapped)
 {
-	DWORD bytes;
 	DWORD flag = 0;
-	WSABUF buf{};
-	buf.buf = mReceiveBuffer;
-	buf.len = MaxRecvLength;
 
-	if (WSARecv(mSocket, &buf, 1, &bytes, &flag, 0, 0) != 0)
-		throw NetException();
-
-	return CreateMessage(bytes);
-}
-
-Message Socket::CreateMessage(DWORD bytes)
-{
-	Message msg{};
-	msg.size = *((ushort_t*)(mReceiveBuffer + 1));
-	msg.mMsgType = static_cast<MsgType>(mReceiveBuffer[2]);
-	msg.mPackets.resize(msg.size);
-	
-	std::memcpy(msg.mPackets.data(), mReceiveBuffer + 3, msg.size);
-	return msg;
+	if (WSARecv(mSocket,
+		&overlapped.WSABuffer, 1, 0, &flag,
+		&overlapped, RecvRoutine) != 0)
+	{
+		if (WSAGetLastError() != WSA_IO_PENDING)
+			throw NetException();
+	}
 }

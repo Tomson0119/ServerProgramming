@@ -1,6 +1,7 @@
 #pragma once
 
 #include "WSAInit.h"
+#include "WSAOverlappedEx.h"
 
 extern WSAInit gWSAInstance;
 
@@ -16,6 +17,7 @@ class Message;
 class Socket
 {
 public:
+	Socket() = default;
 	Socket(Protocol type);
 	Socket(SOCKET sck);
 	virtual ~Socket();
@@ -23,19 +25,18 @@ public:
 	void Bind(const EndPoint& ep);
 	void Listen();
 
-	Socket Accept(EndPoint& ep);
-	
+	SOCKET Accept(EndPoint& ep);
+
 	void Connect(const EndPoint& ep);
 
-	void Send(Message& msg);
-	Message Receive();
+	void Send(WSAOVERLAPPEDEX& overlapped);
+	void Recv(WSAOVERLAPPEDEX& overlapped);
 
-private:
-	Message CreateMessage(DWORD bytes);
+public:
+	static void CALLBACK SendRoutine(DWORD err, DWORD bytes, LPWSAOVERLAPPED overlapped, DWORD flag);
+	static void CALLBACK RecvRoutine(DWORD err, DWORD bytes, LPWSAOVERLAPPED overlapped, DWORD flag);
 
-private:
-	SOCKET mSocket{};
-
-	static const int MaxRecvLength = 1024;
-	char mReceiveBuffer[MaxRecvLength];
+public:
+	SOCKET mSocket;
+	Message mReceiveBuffer;
 };
