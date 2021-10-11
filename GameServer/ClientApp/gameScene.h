@@ -10,7 +10,6 @@
 #include "shader.h"
 #include "texture.h"
 
-
 class GameScene
 {
 public:
@@ -23,6 +22,10 @@ public:
 
 	void UpdateConstants(Camera* camera);
 	void Update(const GameTimer& timer);
+
+	void UpdatePlayersCoord(const std::vector<PlayerCoord>& coords);
+	void AppendNewPlayer(ID3D12Device* device, const std::vector<PlayerCoord>& coords, int id);
+
 	void Draw(ID3D12GraphicsCommandList* cmdList);
 
 	void OnProcessMouseDown(WPARAM buttonState, int x, int y) {}
@@ -33,6 +36,7 @@ public:
 	void OnPreciseKeyInput(const GameTimer& timer) { }
 
 	XMFLOAT4 GetFrameColor() const { return mFrameColor; }
+	bool NeedsToAddPlayer(const std::vector<PlayerCoord>& coords) const { return (mPlayers.size() < coords.size()); }
 
 private:
 	void BuildRootSignature(ID3D12Device* device);
@@ -53,10 +57,10 @@ private:
 	std::unordered_map<std::string, std::unique_ptr<Pipeline>> mPipelines;
 	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
 	
-	GameObject* mPlayer = nullptr;
+	std::vector<GameObject*> mPlayers;
+	
+	std::shared_ptr<Mesh> mPawnMesh;
 
 public:
 	const int mMaxBoardSize = 8;
-	int mPlayerPosRow = 0;
-	int mPlayerPosCol = 0;
 };

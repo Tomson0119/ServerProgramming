@@ -49,13 +49,19 @@ void GameScene::Update(const GameTimer& timer)
 {
 	OnPreciseKeyInput(timer);
 
-	float offset = (float)mMaxBoardSize / (mMaxBoardSize - 1);
-	float playerPosX = -4.0f + (float)(mPlayerPosCol * offset);
-	float playerPosZ = -4.0f + (float)(mPlayerPosRow * offset);
-	mPlayer->SetPosition(playerPosX, 0.0f, playerPosZ);
-
 	for (const auto& [_, pso] : mPipelines)
 		pso->Update(timer.ElapsedTime());
+}
+
+void GameScene::UpdatePlayersCoord(const std::vector<PlayerCoord>& coords)
+{
+	float offset = (float)mMaxBoardSize / (mMaxBoardSize - 1);
+	for (int i = 0; i < mPlayers.size(); i++)
+	{
+		float playerPosX = -4.0f + (float)(coords[i].Col * offset);
+		float playerPosZ = -4.0f + (float)(coords[i].Row * offset);
+		mPlayers[i]->SetPosition(playerPosX, 0.0f, playerPosZ);
+	}
 }
 
 void GameScene::Draw(ID3D12GraphicsCommandList* cmdList)
@@ -69,6 +75,28 @@ void GameScene::Draw(ID3D12GraphicsCommandList* cmdList)
 
 void GameScene::OnProcessKeyInput(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
+}
+
+void GameScene::AppendNewPlayer(ID3D12Device* device, const std::vector<PlayerCoord>& coords, int id)
+{
+	int start = mPlayers.size();
+	for(int i=start;i<coords.size();i++)
+	{
+		auto player = make_shared<GameObject>();
+		player->SetMesh(mPawnMesh);
+		if (i == id)
+			player->SetSRVIndex(2);
+		else
+			player->SetSRVIndex(3);
+		player->SetPosition(-4.0f, 0.0f, -4.0f);
+		player->Scale(0.5f, 0.5f, 0.5f);
+		player->SetMaterial(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), XMFLOAT3(0.01f, 0.01f, 0.01f), 0.25f);
+		mPipelines["texLit"]->AppendObject(player);
+
+		mPlayers.push_back(player.get());
+	}
+	mPipelines["texLit"]->BuildConstantBuffer(device);
+	mPipelines["texLit"]->BuildDescriptorHeap(device, 2, 3);
 }
 
 void GameScene::BuildRootSignature(ID3D12Device* device)
@@ -130,14 +158,20 @@ void GameScene::BuildTextures(ID3D12Device* device, ID3D12GraphicsCommandList* c
 	whiteTex->CreateTextureResource(device, cmdList, L"Resources\\white.dds");
 	whiteTex->SetDimension(D3D12_SRV_DIMENSION_TEXTURE2D);
 	mPipelines["texLit"]->AppendTexture(whiteTex);
+
+	auto blackTex = make_shared<Texture>();
+	blackTex->CreateTextureResource(device, cmdList, L"Resources\\black.dds");
+	blackTex->SetDimension(D3D12_SRV_DIMENSION_TEXTURE2D);
+	mPipelines["texLit"]->AppendTexture(blackTex);
 }
 
 void GameScene::BuildGameObjects(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
 {
+	mPawnMesh = make_shared<Mesh>();
+	mPawnMesh->LoadFromBinary(device, cmdList, L"Models\\pawn.bin");
+
 	auto gridMesh1 = make_shared<GridMesh>(device, cmdList, 10.0f, 10.0f);
 	auto gridMesh2 = make_shared<GridMesh>(device, cmdList, 10.0f, 0.6f);
-	auto pawnMesh = make_shared<Mesh>();
-	pawnMesh->LoadFromBinary(device, cmdList, L"Models\\pawn.bin");
 	
 	auto top = make_shared<GameObject>();
 	top->SetMesh(gridMesh1);
@@ -173,16 +207,6 @@ void GameScene::BuildGameObjects(ID3D12Device* device, ID3D12GraphicsCommandList
 		side->SetMaterial(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), XMFLOAT3(0.01f, 0.01f, 0.01f), 0.25f);
 		mPipelines["texLit"]->AppendObject(side);
 	}
-
-	auto pawn = make_shared<GameObject>();
-	pawn->SetMesh(pawnMesh);
-	pawn->SetSRVIndex(2);
-	pawn->SetPosition(-4.0f, 0.0f, -4.0f);
-	pawn->Scale(0.5f, 0.5f, 0.5f);
-	pawn->SetMaterial(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), XMFLOAT3(0.01f, 0.01f, 0.01f), 0.25f);
-	mPipelines["texLit"]->AppendObject(pawn);
-
-	mPlayer = pawn.get();
 }
 
 void GameScene::BuildConstantBuffers(ID3D12Device* device)
