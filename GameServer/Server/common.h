@@ -5,3 +5,4 @@
 #include <EndPoint.h>
 #include <NetException.h>
 #include <Message.h>
+#include <PacketTypes.h>
