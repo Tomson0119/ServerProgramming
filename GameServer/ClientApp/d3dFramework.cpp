@@ -88,7 +88,7 @@ bool D3DFramework::InitAndRunQueryWindow()
 bool D3DFramework::InitSocket()
 {
 	mClientSck = std::make_unique<ClientSocket>(Protocol::TCP);
-	mClientSck->Connect(EndPoint("127.0.0.1", SERVER_PORT));
+	mClientSck->Connect(EndPoint(mServerIPAddress, SERVER_PORT));
 	mClientSck->RecvMsg();
 	return true;
 }
