@@ -2,53 +2,52 @@
 
 #include <vector>
 
-enum class MsgType
+enum class MsgType : uint8_t
 {
+	MSG_ACCEPT,
+	MSG_JOIN,
 	MSG_MOVE,
 	MSG_DISCONNECT
 };
 
+struct MsgHeader
+{
+	uint8_t size;
+	MsgType msg_type;
+};
+
+const int MaxRecvSize = 1024;
+
 class Message
 {
 public:
-	ushort_t size = 0;
-	MsgType mMsgType{};
+	MsgHeader Header{};
 
 public:
 	Message() { }
-	Message(MsgType type) : mMsgType(type) { }
+	Message(MsgType type) 
+	{
+		Header.size = 0;
+		Header.msg_type = type;
+	}
 	~Message() { }
 
 	template<typename T>
 	void Push(const T& data)
 	{
 		size_t dataSize = sizeof(T);
-		size_t currSize = mPackets.size();
+		size_t currSize = Header.size;
 
-		mPackets.resize(currSize + dataSize);
-		std::memcpy(mPackets.data() + currSize, &data, dataSize);
+		std::memcpy(Body.data() + currSize, &data, dataSize);
 
-		size = (ushort_t)mPackets.size();
+		Header.size += (uint8_t)dataSize;
 	}
 
-	template<typename T>
-	void Pop(T& data)
+	size_t GetPacketSize() const
 	{
-		size_t dataSize = sizeof(T);
-		size_t start = mPackets.size() - dataSize;
-		std::memcpy(&data, mPackets.data() + start, dataSize);
-		mPackets.resize(start);
-	}
-
-	std::vector<uint8_t> GetSendPackets()
-	{
-		mPackets.insert(mPackets.begin(), (uint8_t)mMsgType);
-		mPackets.insert(mPackets.begin(), LOBYTE(size));
-		mPackets.insert(mPackets.begin(), HIBYTE(size));
-	
-		return mPackets;
+		return (sizeof(MsgHeader) + Header.size);
 	}
 
 public:
-	std::vector<uint8_t> mPackets;
+	std::array<uint8_t, MaxRecvSize-sizeof(MsgHeader)> Body;
 };
