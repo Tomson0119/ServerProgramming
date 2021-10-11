@@ -110,19 +110,12 @@ void GameFramework::OnProcessKeyInput(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_KEYDOWN:
 		if (0x25 <= wParam && wParam <= 0x28)
 		{
+			PlayerCoord p = mClientSck->PlayerCoords[mClientSck->ID];
 			Message msg(MsgType::MSG_MOVE);
 			msg.Push((uint8_t)wParam);
-			mClientSck->Send(msg);
-
-			Message fromServer = mClientSck->Receive();
-			if (fromServer.mMsgType == MsgType::MSG_MOVE)
-			{
-				uint8_t row, col;
-				fromServer.Pop(col);
-				fromServer.Pop(row);
-				mScenes.top()->mPlayerPosCol = (int)col;
-				mScenes.top()->mPlayerPosRow = (int)row;
-			}
+			msg.Push(p.Col);
+			msg.Push(p.Row);
+			mClientSck->SendMsg(msg);
 		}
 		break;
 	}
@@ -131,10 +124,18 @@ void GameFramework::OnProcessKeyInput(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 void GameFramework::Update()
 {
-	D3DFramework::UpdateFrameStates();
+	D3DFramework::UpdateFrameStates();		
 
 	mCamera->Update(mTimer.ElapsedTime());
-	if (!mScenes.empty()) {
+	if (!mScenes.empty())
+	{
+		if (mScenes.top()->NeedsToAddPlayer(mClientSck->PlayerCoords))
+			mScenes.top()->AppendNewPlayer(
+				mD3dDevice.Get(), 
+				mClientSck->PlayerCoords,
+				mClientSck->ID);
+		
+		mScenes.top()->UpdatePlayersCoord(mClientSck->PlayerCoords);
 		mScenes.top()->Update(mTimer);
 		mScenes.top()->UpdateConstants(mCamera.get());
 	}
