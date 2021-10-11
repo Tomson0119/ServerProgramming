@@ -50,9 +50,6 @@
     <ClCompile Include="WSAInit.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="main.cpp">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="NetException.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
