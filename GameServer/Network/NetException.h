@@ -9,6 +9,5 @@ public:
 	virtual const char* what() const;
 
 private:
-	std::wstring errorInfo;
-	char errorMsg[1024]{};
+	std::string m_errorString;
 };
