@@ -2,25 +2,17 @@
 #include "Socket.h"
 #include "EndPoint.h"
 #include "Message.h"
+#include <iostream>
 
 WSAInit gWSAInstance;
 
-Socket::Socket(Protocol type)
-	: mSocket{}, mReceiveBuffer{}
+Socket::Socket()
+	: mReceiveBuffer{}
 {
 	if (!gWSAInstance.Init())
-		throw NetException();
+		throw NetException("WSAData Initialize failed");
 
-	switch (type)
-	{
-	case Protocol::TCP:
-		mSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, 0, 0, WSA_FLAG_OVERLAPPED);
-		break;
-
-	case Protocol::UDP:
-		mSocket = WSASocket(AF_INET, SOCK_DGRAM, IPPROTO_UDP, 0, 0, WSA_FLAG_OVERLAPPED);
-		break;
-	}
+	mSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, 0, 0, WSA_FLAG_OVERLAPPED);
 }
 
 Socket::Socket(SOCKET sck)
@@ -31,28 +23,28 @@ Socket::Socket(SOCKET sck)
 
 Socket::~Socket()
 {
-	closesocket(mSocket);
+	if(mSocket)
+		closesocket(mSocket);
 }
 
 void Socket::Bind(const EndPoint& ep)
 {
 	if (bind(mSocket, reinterpret_cast<const sockaddr*>(&ep.address), sizeof(ep.address)) != 0)
-		throw NetException();
+		throw NetException("Bind failed");
 }
 
 void Socket::Listen()
 {
 	if (listen(mSocket, SOMAXCONN) != 0)
-		throw NetException();
+		throw NetException("Listen failed");
 }
 
-SOCKET Socket::Accept(EndPoint& ep)
+SOCKET Socket::Accept()
 {
-	INT addr_len = (INT)sizeof(ep.address);
-	SOCKET sck = WSAAccept(mSocket, reinterpret_cast<sockaddr*>(&ep.address), &addr_len, 0, 0);
+	SOCKET sck = WSAAccept(mSocket, NULL, 0, 0, 0);
 	
 	if (sck == INVALID_SOCKET)
-		throw NetException();
+		throw NetException("Accept failed");
 	return sck;
 }
 
@@ -62,7 +54,7 @@ void Socket::Connect(const EndPoint& ep)
 		reinterpret_cast<const sockaddr*>(&ep.address), 
 		sizeof(ep.address),	0, 0, 0, 0) != 0)
 	{
-		throw NetException();
+		throw NetException("Connect failed");
 	}
 }
 
@@ -75,7 +67,7 @@ void Socket::Send(WSAOVERLAPPEDEX& overlapped)
 		&overlapped, SendRoutine) != 0)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
-			throw NetException();
+			throw NetException("Send failed");
 	}
 }
 
@@ -88,6 +80,6 @@ void Socket::Recv(WSAOVERLAPPEDEX& overlapped)
 		&overlapped, RecvRoutine) != 0)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
-			throw NetException();
+			throw NetException("Recv failed");
 	}
 }

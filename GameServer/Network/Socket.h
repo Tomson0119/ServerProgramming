@@ -5,27 +5,20 @@
 
 extern WSAInit gWSAInstance;
 
-enum class Protocol
-{
-	TCP,
-	UDP
-};
-
 class EndPoint;
 class Message;
 
 class Socket
 {
 public:
-	Socket() = default;
-	Socket(Protocol type);
+	Socket();
 	Socket(SOCKET sck);
 	virtual ~Socket();
 
 	void Bind(const EndPoint& ep);
 	void Listen();
 
-	SOCKET Accept(EndPoint& ep);
+	SOCKET Accept();
 
 	void Connect(const EndPoint& ep);
 
