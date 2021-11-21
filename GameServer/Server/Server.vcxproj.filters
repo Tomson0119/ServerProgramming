@@ -21,7 +21,7 @@
     <ClCompile Include="Session.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="Server.cpp">
+    <ClCompile Include="IOCPServer.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
@@ -32,7 +32,7 @@
     <ClInclude Include="Session.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="Server.h">
+    <ClInclude Include="IOCPServer.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>
