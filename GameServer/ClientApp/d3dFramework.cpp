@@ -38,13 +38,7 @@ void D3DFramework::Run()
 	mTimer.Reset();
 
 	while (msg.message != WM_QUIT)
-	{
-		// For Overlapped IO 
-		MsgWaitForMultipleObjectsEx(
-			0, 0,
-			INFINITE, QS_ALLINPUT,
-			MWMO_INPUTAVAILABLE | MWMO_ALERTABLE);			
-
+	{	
 		// 윈도우 메세지 처리
 		if (PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
 		{
@@ -76,20 +70,23 @@ void D3DFramework::SetResolution(int width, int height)
 
 bool D3DFramework::InitAndRunQueryWindow()
 {
-	if (!mQueryWindow->InitWindow())
+	/*if (!mQueryWindow->InitWindow())
 		return false;
 
-	mQueryWindow->Run();
-	mServerIPAddress = mQueryWindow->GetServerIPAddress();
+	mQueryWindow->Run();*/
+	mServerIPAddress = "127.0.0.1";
 
 	return true;
 }
 
 bool D3DFramework::InitSocket()
 {
-	mClientSck = std::make_unique<ClientSocket>(Protocol::TCP);
+	mClientSck = std::make_unique<ClientSocket>();
 	mClientSck->Connect(EndPoint(mServerIPAddress, SERVER_PORT));
+	mClientSck->CreateIOCP();
+	mClientSck->AssignThread();
 	mClientSck->RecvMsg();
+	mClientSck->SendLoginPacket();
 	return true;
 }
 
@@ -388,47 +385,27 @@ LRESULT D3DFramework::OnProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	switch(uMsg)
 	{
 	case WM_ACTIVATE:  // 윈도우 창을 활성화 했을 때
-		if (LOWORD(wParam) == WA_INACTIVE)
-		{
-			mPaused = true;
-			mTimer.Stop();
-		}
-		else
-		{
-			mPaused = false;
-			mTimer.Start();
-		}
 		break;
 		
 	case WM_SIZE:  // 윈도우 창의 크기를 변경했을 때
 		mFrameWidth = LOWORD(lParam);
 		mFrameHeight = HIWORD(lParam);
-		if (wParam == SIZE_MINIMIZED)
+		if (wParam == SIZE_MAXIMIZED)
 		{
-			mPaused = true;
-		}
-		else if (wParam == SIZE_MAXIMIZED)
-		{
-			mPaused = false;
 			OnResize();
 		}
 		else if (wParam == SIZE_RESTORED)
 		{
 			if (mD3dDevice) {
-				mPaused = false;
 				OnResize();
 			}
 		}		
 		break;
 
 	case WM_ENTERSIZEMOVE:  // 윈도우 창의 크기 조절 바를 클릭했을 때
-		mPaused = true;
-		mTimer.Stop();
 		break;
 
 	case WM_EXITSIZEMOVE:  // 윈도우 창 크기 조절을 끝마쳤을 때
-		mPaused = false;
-		mTimer.Start();
 		OnResize();
 		break;
 
@@ -462,7 +439,7 @@ LRESULT D3DFramework::OnProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		return MAKELRESULT(0, MNC_CLOSE);
 
 	case WM_DESTROY:
-		if (mClientSck) mClientSck->Disconnect();
+		mClientSck->Disconnect();
 		PostQuitMessage(0);
 		return 0;
 

@@ -109,6 +109,19 @@ void Pipeline::AppendTexture(const std::shared_ptr<Texture>& tex)
 	mTextures.push_back(tex);
 }
 
+void Pipeline::DeleteObject(GameObject* obj)
+{
+	auto p = std::find_if(mRenderObjects.begin(), mRenderObjects.end(), [&obj](auto& ptr)
+		{
+			if (ptr.get() == obj)
+				return true;
+			return false;
+		});
+
+	if (p != mRenderObjects.end())
+		mRenderObjects.erase(p);
+}
+
 void Pipeline::SetAndDraw(ID3D12GraphicsCommandList* cmdList)
 {
 	ID3D12DescriptorHeap* descHeaps[] = { mCbvSrvDescriptorHeap.Get() };

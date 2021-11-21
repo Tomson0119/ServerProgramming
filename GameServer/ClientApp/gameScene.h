@@ -23,8 +23,10 @@ public:
 	void UpdateConstants(Camera* camera);
 	void Update(const GameTimer& timer);
 
-	void UpdatePlayersCoord(const std::vector<PlayerCoord>& coords);
-	void AppendNewPlayer(ID3D12Device* device, const std::vector<PlayerCoord>& coords, int id);
+	void UpdatePlayersCoord(const std::unordered_map<int, PlayerCoord>& coords);
+
+	void AppendOrDeletePlayers(ID3D12Device* device, int myID,
+		const std::unordered_map<int, PlayerCoord>& coords);
 
 	void Draw(ID3D12GraphicsCommandList* cmdList);
 
@@ -35,8 +37,10 @@ public:
 
 	void OnPreciseKeyInput(const GameTimer& timer) { }
 
+	XMFLOAT3 GetPlayerPosition(int id);
 	XMFLOAT4 GetFrameColor() const { return mFrameColor; }
-	bool NeedsToAddPlayer(const std::vector<PlayerCoord>& coords) const { return (mPlayers.size() < coords.size()); }
+
+	int GetTotalPlayers() const { return (int)mPlayers.size(); }
 
 private:
 	void BuildRootSignature(ID3D12Device* device);
@@ -57,10 +61,7 @@ private:
 	std::unordered_map<std::string, std::unique_ptr<Pipeline>> mPipelines;
 	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
 	
-	std::vector<GameObject*> mPlayers;
+	std::unordered_map<int, GameObject*> mPlayers;
 	
 	std::shared_ptr<Mesh> mPawnMesh;
-
-public:
-	const int mMaxBoardSize = 8;
 };

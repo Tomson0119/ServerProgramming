@@ -53,15 +53,54 @@ void GameScene::Update(const GameTimer& timer)
 		pso->Update(timer.ElapsedTime());
 }
 
-void GameScene::UpdatePlayersCoord(const std::vector<PlayerCoord>& coords)
+void GameScene::UpdatePlayersCoord(const std::unordered_map<int, PlayerCoord>& coords)
 {
-	float offset = (float)mMaxBoardSize / (mMaxBoardSize - 1);
-	for (int i = 0; i < mPlayers.size(); i++)
+	for (const auto& coord : coords)
 	{
-		float playerPosX = -4.0f + (float)(coords[i].Col * offset);
-		float playerPosZ = -4.0f + (float)(coords[i].Row * offset);
-		mPlayers[i]->SetPosition(playerPosX, 0.0f, playerPosZ);
+		float playerPosX = -3.5f + (float)coord.second.Col;
+		float playerPosZ = 3.5f - (float)coord.second.Row;
+		mPlayers[coord.first]->SetPosition(playerPosX, 0.0f, playerPosZ);
 	}
+}
+
+void GameScene::AppendOrDeletePlayers(
+	ID3D12Device* device, int myID, 
+	const std::unordered_map<int, PlayerCoord>& coords)
+{
+	for (const auto& coord : coords)
+	{
+		if (mPlayers.find(coord.first) != mPlayers.end())
+			continue;
+
+		auto player = make_shared<GameObject>();
+		player->SetMesh(mPawnMesh);
+		if (coord.first == myID)
+			player->SetSRVIndex(1);
+		else
+			player->SetSRVIndex(2);
+		player->SetPosition(0.0f, 0.0f, 0.0f);
+		player->Scale(0.5f, 0.5f, 0.5f);
+		player->SetMaterial(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), XMFLOAT3(0.01f, 0.01f, 0.01f), 0.25f);
+		mPipelines["texLit"]->AppendObject(player);
+
+		mPlayers[coord.first] = player.get();
+	}
+
+	vector<int> trash_can;
+	for (const auto& player : mPlayers)
+	{
+		if (coords.find(player.first) != coords.end())
+			continue;
+
+		mPipelines["texLit"]->DeleteObject(player.second);
+		trash_can.push_back(player.first);
+	}
+
+	for (int e : trash_can)
+		mPlayers.erase(e);
+
+	mPipelines["texLit"]->BuildConstantBuffer(device);
+	mPipelines["texLit"]->BuildDescriptorHeap(device, 2, 3);
 }
 
 void GameScene::Draw(ID3D12GraphicsCommandList* cmdList)
@@ -77,26 +116,11 @@ void GameScene::OnProcessKeyInput(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 }
 
-void GameScene::AppendNewPlayer(ID3D12Device* device, const std::vector<PlayerCoord>& coords, int id)
+XMFLOAT3 GameScene::GetPlayerPosition(int id)
 {
-	int start = mPlayers.size();
-	for(int i=start;i<coords.size();i++)
-	{
-		auto player = make_shared<GameObject>();
-		player->SetMesh(mPawnMesh);
-		if (i == id)
-			player->SetSRVIndex(2);
-		else
-			player->SetSRVIndex(3);
-		player->SetPosition(-4.0f, 0.0f, -4.0f);
-		player->Scale(0.5f, 0.5f, 0.5f);
-		player->SetMaterial(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), XMFLOAT3(0.01f, 0.01f, 0.01f), 0.25f);
-		mPipelines["texLit"]->AppendObject(player);
-
-		mPlayers.push_back(player.get());
-	}
-	mPipelines["texLit"]->BuildConstantBuffer(device);
-	mPipelines["texLit"]->BuildDescriptorHeap(device, 2, 3);
+	if (mPlayers.find(id) != mPlayers.end())
+		return mPlayers[id]->GetPosition();
+	return XMFLOAT3(-100.0f, -100.0f, -100.0f);
 }
 
 void GameScene::BuildRootSignature(ID3D12Device* device)
@@ -145,14 +169,9 @@ void GameScene::BuildDescriptorHeap(ID3D12Device* device)
 void GameScene::BuildTextures(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList)
 {
 	auto boardTex = make_shared<Texture>();
-	boardTex->CreateTextureResource(device, cmdList, L"Resources\\board.dds");
+	boardTex->CreateTextureResource(device, cmdList, L"Resources\\chessboard.dds");
 	boardTex->SetDimension(D3D12_SRV_DIMENSION_TEXTURE2D);
 	mPipelines["texLit"]->AppendTexture(boardTex);
-
-	auto sideTex = make_shared<Texture>();
-	sideTex->CreateTextureResource(device, cmdList, L"Resources\\brown.dds");
-	sideTex->SetDimension(D3D12_SRV_DIMENSION_TEXTURE2D);
-	mPipelines["texLit"]->AppendTexture(sideTex);
 
 	auto whiteTex = make_shared<Texture>();
 	whiteTex->CreateTextureResource(device, cmdList, L"Resources\\white.dds");
@@ -170,42 +189,19 @@ void GameScene::BuildGameObjects(ID3D12Device* device, ID3D12GraphicsCommandList
 	mPawnMesh = make_shared<Mesh>();
 	mPawnMesh->LoadFromBinary(device, cmdList, L"Models\\pawn.bin");
 
-	auto gridMesh1 = make_shared<GridMesh>(device, cmdList, 10.0f, 10.0f);
-	auto gridMesh2 = make_shared<GridMesh>(device, cmdList, 10.0f, 0.6f);
-	
-	auto top = make_shared<GameObject>();
-	top->SetMesh(gridMesh1);
-	top->SetSRVIndex(0);
-	top->SetMaterial(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), XMFLOAT3(0.01f, 0.01f, 0.01f), 0.25f);
-	mPipelines["texLit"]->AppendObject(top);
+	auto gridMesh = make_shared<GridMesh>(device, cmdList, 8.0f, 8.0f);
 
-	auto bottom = make_shared<GameObject>();
-	bottom->SetMesh(gridMesh1);
-	bottom->SetSRVIndex(1);
-	bottom->Rotate(180.0f, 0.0f, 0.0f);
-	bottom->Upward(-0.6f, false);
-	bottom->SetMaterial(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), XMFLOAT3(0.01f, 0.01f, 0.01f), 0.25f);
-	mPipelines["texLit"]->AppendObject(bottom);
-
-	for (int i = 0; i < 4; i++)
+	for (int i = 0; i < 50; i++)
 	{
-		auto side = make_shared<GameObject>();
-		side->SetMesh(gridMesh2);
-		side->SetSRVIndex(1);
-
-		if (i == 0)
-			side->Rotate(-90.0f, 0.0f, 0.0f);
-		else if (i == 1)
-			side->Rotate(90.0f, 0.0f, 0.0f);
-		else if (i == 2)
-			side->Rotate(90.0f, 0.0f, 90.0f);
-		else
-			side->Rotate(90.0f, 0.0f, -90.0f);
-
-		side->Upward(5.0f);
-		side->Upward(-0.3f, false);
-		side->SetMaterial(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), XMFLOAT3(0.01f, 0.01f, 0.01f), 0.25f);
-		mPipelines["texLit"]->AppendObject(side);
+		for (int j = 0; j < 50; j++)
+		{
+			auto tile = make_shared<GameObject>();
+			tile->SetMesh(gridMesh);
+			tile->SetPosition(XMFLOAT3(j * 4.0f, 0.0f, -i * 4.0f));
+			tile->SetSRVIndex(0);
+			tile->SetMaterial(XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f), XMFLOAT3(0.01f, 0.01f, 0.01f), 0.25f);
+			mPipelines["texLit"]->AppendObject(tile);
+		}
 	}
 }
 

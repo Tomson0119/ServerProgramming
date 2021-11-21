@@ -113,5 +113,4 @@ protected:
 	std::unique_ptr<ClientSocket> mClientSck;
 	
 	std::string mServerIPAddress = "";
-	static const short SERVER_PORT = 5505;
 };

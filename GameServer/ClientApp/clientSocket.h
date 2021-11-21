@@ -3,21 +3,35 @@
 class ClientSocket : public Socket
 {
 public:
-	ClientSocket(Protocol type);
+	ClientSocket();
 	virtual ~ClientSocket();
 
-	void SendMsg(Message& msg);
-	void RecvMsg();
+	void CreateIOCP();
+	void AssignThread();
+
+	void SendLoginPacket();
+	void SendMovePacket(char input);
 
 	void Disconnect();
 
-	void HandleMessage(Message& msg);
+	static void Update(ClientSocket& client);
+
+	void SendMsg(char* msg, int bytes);
+	void RecvMsg();
+	void HandleMessage(unsigned char* msg);
+
+	int GetTotalPlayers() const { return (int)PlayerCoords.size(); }
 
 public:
-	static std::vector<PlayerCoord> PlayerCoords;
+	std::unordered_map<int, PlayerCoord> PlayerCoords;
 	int ID;
+	int PrevSize;
+	bool Dirty;
 
 private:
-	WSAOVERLAPPEDEX mSendOverlapped;
+	IOCP mIOCP;
 	WSAOVERLAPPEDEX mRecvOverlapped;
+	bool mLoop;
+
+	std::thread mSocketThread;
 };

@@ -28,6 +28,8 @@ public:
 	void AppendObject(const std::shared_ptr<GameObject>& obj);
 	void AppendTexture(const std::shared_ptr<Texture>& tex);
 
+	void DeleteObject(GameObject* obj);
+
 	void Update(const float elapsed);
 	void UpdateConstants();
 

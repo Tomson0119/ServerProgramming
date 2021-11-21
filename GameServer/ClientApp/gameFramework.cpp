@@ -27,8 +27,7 @@ bool GameFramework::InitFramework()
 	mCamera = make_unique<Camera>();
 	mCamera->SetPosition(0.0f, 0.0f, 0.0f);
 	mCamera->SetLens(0.25f * Math::PI, GetAspect(), 1.0f, 1000.0f);
-	mCamera->Pitch(30.0f);
-	mCamera->Walk(-mCameraRadius);
+	mCamera->Pitch(90.0f);
 
 	mScenes.push(make_unique<GameScene>());
 	mScenes.top()->BuildObjects(mD3dDevice.Get(), mCommandList.Get());
@@ -52,12 +51,6 @@ void GameFramework::OnResize()
 
 void GameFramework::OnProcessMouseDown(WPARAM buttonState, int x, int y)
 {
-	if (buttonState & MK_LBUTTON)
-	{
-		SetCapture(m_hwnd);
-		mLastMousePos.x = x;
-		mLastMousePos.y = y;
-	}
 	if (!mScenes.empty()) mScenes.top()->OnProcessMouseDown(buttonState, x, y);
 }
 
@@ -69,17 +62,6 @@ void GameFramework::OnProcessMouseUp(WPARAM buttonState, int x, int y)
 
 void GameFramework::OnProcessMouseMove(WPARAM buttonState, int x, int y)
 {
-	if ((buttonState & MK_LBUTTON) && GetCapture())
-	{
-		float dx = static_cast<float>(x - mLastMousePos.x);
-
-		mLastMousePos.x = x;
-		mLastMousePos.y = y;
-
-		mCamera->Walk(mCameraRadius);
-		mCamera->RotateY(0.25f * dx);
-		mCamera->Walk(-mCameraRadius);
-	}
 	if (!mScenes.empty()) mScenes.top()->OnProcessMouseMove(buttonState);
 }
 
@@ -110,12 +92,7 @@ void GameFramework::OnProcessKeyInput(UINT uMsg, WPARAM wParam, LPARAM lParam)
 	case WM_KEYDOWN:
 		if (0x25 <= wParam && wParam <= 0x28)
 		{
-			PlayerCoord p = mClientSck->PlayerCoords[mClientSck->ID];
-			Message msg(MsgType::MSG_MOVE);
-			msg.Push((uint8_t)wParam);
-			msg.Push(p.Col);
-			msg.Push(p.Row);
-			mClientSck->SendMsg(msg);
+			mClientSck->SendMovePacket((char)wParam);
 		}
 		break;
 	}
@@ -124,17 +101,21 @@ void GameFramework::OnProcessKeyInput(UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 void GameFramework::Update()
 {
-	D3DFramework::UpdateFrameStates();		
+	D3DFramework::UpdateFrameStates();
 
+	XMFLOAT3& player_pos = mScenes.top()->GetPlayerPosition(mClientSck->ID);
+	if (!Vector3::Equal(player_pos, XMFLOAT3(-100.0f, -100.0f, -100.0f)))
+	{
+		mCamera->SetPosition(player_pos.x + 0.5f, player_pos.y + 19.2f, player_pos.z + 0.5f);
+	}
 	mCamera->Update(mTimer.ElapsedTime());
 	if (!mScenes.empty())
 	{
-		if (mScenes.top()->NeedsToAddPlayer(mClientSck->PlayerCoords))
-			mScenes.top()->AppendNewPlayer(
-				mD3dDevice.Get(), 
-				mClientSck->PlayerCoords,
-				mClientSck->ID);
-		
+		if (mClientSck->Dirty)
+		{
+			mScenes.top()->AppendOrDeletePlayers(mD3dDevice.Get(), mClientSck->ID, mClientSck->PlayerCoords);
+			mClientSck->Dirty = false;
+		}
 		mScenes.top()->UpdatePlayersCoord(mClientSck->PlayerCoords);
 		mScenes.top()->Update(mTimer);
 		mScenes.top()->UpdateConstants(mCamera.get());
