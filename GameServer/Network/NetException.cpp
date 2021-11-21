@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "NetException.h"
 
-NetException::NetException()
+NetException::NetException(const std::string& info)
 {
 	LPSTR msgBuffer{};
 	size_t size = FormatMessageA(
@@ -9,7 +9,7 @@ NetException::NetException()
 		NULL, WSAGetLastError(),
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 		(LPSTR)&msgBuffer, 0, NULL);
-	m_errorString = msgBuffer;
+	mErrorString = info + ": " + msgBuffer;
 	LocalFree(msgBuffer);
 }
 
@@ -19,5 +19,5 @@ NetException::~NetException()
 
 const char* NetException::what() const
 {
-	return m_errorString.c_str();
+	return mErrorString.c_str();
 }

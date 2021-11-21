@@ -1,22 +1,23 @@
 #include "stdafx.h"
 #include "Socket.h"
 #include "EndPoint.h"
-#include "Message.h"
+#include "WSAOverlappedEx.h"
+
 #include <iostream>
 
 WSAInit gWSAInstance;
 
 Socket::Socket()
-	: mReceiveBuffer{}
 {
 	if (!gWSAInstance.Init())
 		throw NetException("WSAData Initialize failed");
 
 	mSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, 0, 0, WSA_FLAG_OVERLAPPED);
+	if (mSocket == INVALID_SOCKET)
+		throw NetException("Socket creation failed");
 }
 
 Socket::Socket(SOCKET sck)
-	: mReceiveBuffer{}
 {
 	mSocket = sck;
 }
@@ -39,13 +40,20 @@ void Socket::Listen()
 		throw NetException("Listen failed");
 }
 
-SOCKET Socket::Accept()
+void Socket::AsyncAccept(WSAOVERLAPPEDEX& accept_ex)
 {
-	SOCKET sck = WSAAccept(mSocket, NULL, 0, 0, 0);
-	
+	SOCKET sck = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, 0, 0, WSA_FLAG_OVERLAPPED);
 	if (sck == INVALID_SOCKET)
-		throw NetException("Accept failed");
-	return sck;
+		throw NetException("Socket is invalid");
+
+	accept_ex.Reset(OP::ACCEPT, reinterpret_cast<char*>(&sck), sizeof(sck));
+	
+	if (AcceptEx(mSocket, sck, accept_ex.NetBuffer + sizeof(SOCKET), 0, sizeof(sockaddr_in) + 16,
+		sizeof(sockaddr_in) + 16, NULL, &accept_ex.Overlapped) == FALSE)
+	{
+		if(WSAGetLastError() != WSA_IO_PENDING)
+			throw NetException("AcceptEx failed");
+	}
 }
 
 void Socket::Connect(const EndPoint& ep)
@@ -58,28 +66,31 @@ void Socket::Connect(const EndPoint& ep)
 	}
 }
 
-void Socket::Send(WSAOVERLAPPEDEX& overlapped)
+int Socket::Send(WSAOVERLAPPEDEX& overlapped)
 {
 	DWORD bytes = 0;
 
 	if (WSASend(mSocket,
 		&overlapped.WSABuffer, 1, &bytes, 0,
-		&overlapped, SendRoutine) != 0)
+		&overlapped.Overlapped, NULL) != 0)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 			throw NetException("Send failed");
 	}
+	return (int)bytes;
 }
 
-void Socket::Recv(WSAOVERLAPPEDEX& overlapped)
+int Socket::Recv(WSAOVERLAPPEDEX& overlapped)
 {
 	DWORD flag = 0;
+	DWORD bytes = 0;
 
 	if (WSARecv(mSocket,
-		&overlapped.WSABuffer, 1, 0, &flag,
-		&overlapped, RecvRoutine) != 0)
+		&overlapped.WSABuffer, 1, &bytes, &flag,
+		&overlapped.Overlapped, NULL) != 0)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
 			throw NetException("Recv failed");
 	}
+	return (int)bytes;
 }

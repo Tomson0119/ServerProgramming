@@ -6,7 +6,6 @@
 extern WSAInit gWSAInstance;
 
 class EndPoint;
-class Message;
 
 class Socket
 {
@@ -17,19 +16,13 @@ public:
 
 	void Bind(const EndPoint& ep);
 	void Listen();
-
-	SOCKET Accept();
-
+	
+	void AsyncAccept(WSAOVERLAPPEDEX& accpet_ex);
 	void Connect(const EndPoint& ep);
 
-	void Send(WSAOVERLAPPEDEX& overlapped);
-	void Recv(WSAOVERLAPPEDEX& overlapped);
-
-public:
-	static void CALLBACK SendRoutine(DWORD err, DWORD bytes, LPWSAOVERLAPPED overlapped, DWORD flag);
-	static void CALLBACK RecvRoutine(DWORD err, DWORD bytes, LPWSAOVERLAPPED overlapped, DWORD flag);
+	int Send(WSAOVERLAPPEDEX& overlapped);
+	int Recv(WSAOVERLAPPEDEX& overlapped);
 
 public:
 	SOCKET mSocket;
-	Message mReceiveBuffer;
 };

@@ -11,9 +11,16 @@ IOCP::~IOCP()
 {
 }
 
-void IOCP::RegisterDevice(const Socket& sck, int key)
+void IOCP::RegisterDevice(SOCKET sck, int key)
 {
-	if (CreateIoCompletionPort(reinterpret_cast<HANDLE>(sck.mSocket), mIOCP, key, 0) == NULL)
+	if (CreateIoCompletionPort(reinterpret_cast<HANDLE>(sck), mIOCP, key, 0) == NULL)
 		throw NetException("Registering device failed");
+}
+
+CompletionInfo IOCP::GetCompletionInfo() const
+{
+	CompletionInfo info{};
+	info.success = GetQueuedCompletionStatus(mIOCP, &info.bytes, (PULONG_PTR)&info.key, &info.overEx, INFINITE);
+	return info;
 }
 

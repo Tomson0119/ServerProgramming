@@ -2,23 +2,50 @@
 
 #include "stdafx.h"
 #include "Socket.h"
-#include "Message.h"
+#include "Protocol.h"
 
-struct WSAOVERLAPPEDEX : WSAOVERLAPPED
+enum class OP : char
 {
-	WSABUF WSABuffer;
-	class Socket* Caller;
+	RECV,
+	SEND,
+	ACCEPT
+};
 
-	WSAOVERLAPPEDEX()
-		: WSABuffer{}
+struct WSAOVERLAPPEDEX
+{
+	WSAOVERLAPPED Overlapped;
+	WSABUF WSABuffer;
+	OP Operation;
+	uchar NetBuffer[MaxBufferSize];
+
+	WSAOVERLAPPEDEX(OP op = OP::RECV)
+		: Operation(op), WSABuffer{}, NetBuffer{}
 	{
+		ZeroMemory(&Overlapped, sizeof(Overlapped));
+		WSABuffer.buf = reinterpret_cast<char*>(NetBuffer);
+		WSABuffer.len = sizeof(NetBuffer);
 	}
 
-	WSAOVERLAPPEDEX(int bytes, char* data, Socket* caller)
-		: WSABuffer{}
-	{ 
-		WSABuffer.buf = data;
+	WSAOVERLAPPEDEX(OP op, char* data, int bytes)
+		: Operation(op), WSABuffer{}, NetBuffer{}
+	{
+		Reset(op, data, bytes);
+	}
+
+	void Reset(OP op)
+	{
+		Operation = op;
+		ZeroMemory(&Overlapped, sizeof(Overlapped));
+		WSABuffer.buf = reinterpret_cast<char*>(NetBuffer);
+		WSABuffer.len = MaxBufferSize;
+	}
+
+	void Reset(OP op, char* data, int bytes)
+	{
+		Operation = op;
+		ZeroMemory(&Overlapped, sizeof(Overlapped));
+		std::memcpy(NetBuffer, data, bytes);
+		WSABuffer.buf = reinterpret_cast<char*>(NetBuffer);
 		WSABuffer.len = (ULONG)bytes;
-		Caller = caller;
 	}
 };
