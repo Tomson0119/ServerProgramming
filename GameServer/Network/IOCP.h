@@ -1,6 +1,7 @@
 #pragma once
 
 class Socket;
+struct WSAOVERLAPPEDEX;
 
 struct CompletionInfo
 {
@@ -17,8 +18,9 @@ public:
 	~IOCP();
 
 	void RegisterDevice(SOCKET sck, int key);
+	void PostToCompletionQueue(WSAOVERLAPPEDEX* over, int key);
 	CompletionInfo GetCompletionInfo() const;
 
 private:
-	HANDLE mIOCP;
+	HANDLE mIOCPHandle;
 };
