@@ -109,7 +109,7 @@ public:
 	GridMesh(
 		ID3D12Device* device,
 		ID3D12GraphicsCommandList* cmdList,
-		float width, float depth);
+		float width, float depth, float u, float v);
 	virtual ~GridMesh() { }
 };
 

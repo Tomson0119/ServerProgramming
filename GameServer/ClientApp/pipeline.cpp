@@ -145,6 +145,24 @@ void Pipeline::SetAndDraw(ID3D12GraphicsCommandList* cmdList)
 	}
 }
 
+void Pipeline::DrawTexts(
+	ID2D1HwndRenderTarget* rt, 
+	IDWriteTextFormat* format,
+	ID2D1SolidColorBrush* brush)
+{
+	rt->BeginDraw();
+	for (const auto& obj : mRenderObjects) {
+		if (obj->GetText().size() <= 0)
+			continue;
+		std::wstring str = obj->GetText();
+		XMFLOAT3 pos = obj->GetPosition();		
+		rt->DrawText(
+			str.c_str(), str.size(), format,
+			D2D1::RectF(0,0,rt->GetSize().width, rt->GetSize().height), brush);
+	}
+	rt->EndDraw();
+}
+
 void Pipeline::Update(const float elapsed)
 {
 	for (const auto& obj : mRenderObjects)

@@ -24,6 +24,7 @@
 #include <d3d12.h>
 #include <dxgi1_4.h>
 #include <d3dcompiler.h>
+#include <d3d11on12.h>
 
 #include <DirectXCollision.h>
 #include <DirectXMath.h>
@@ -36,6 +37,14 @@
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 #pragma comment(lib, "dxgi.lib")
+#pragma comment(lib, "d3d11.lib")
+
+// D2D1 헤더
+#include <dwrite.h>
+#include <d2d1_3.h>
+
+#pragma comment(lib, "d2d1.lib")
+#pragma comment(lib, "DWrite.lib")
 
 
 // C++ 헤더 파일:

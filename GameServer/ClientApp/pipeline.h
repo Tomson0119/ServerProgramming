@@ -25,6 +25,11 @@ public:
 	void SetTopology(D3D12_PRIMITIVE_TOPOLOGY_TYPE topology) { mPrimitive = topology; }
 	void SetAndDraw(ID3D12GraphicsCommandList* cmdList);
 
+	void DrawTexts(
+		ID2D1HwndRenderTarget* rt, 
+		IDWriteTextFormat* format,
+		ID2D1SolidColorBrush* brush);
+
 	void AppendObject(const std::shared_ptr<GameObject>& obj);
 	void AppendTexture(const std::shared_ptr<Texture>& tex);
 

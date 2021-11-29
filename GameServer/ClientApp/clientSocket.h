@@ -18,20 +18,24 @@ public:
 
 	void SendMsg(char* msg, int bytes);
 	void RecvMsg();
-	void HandleMessage(unsigned char* msg);
+	void ProcessPackets();
 
-	int GetTotalPlayers() const { return (int)PlayerCoords.size(); }
+	int GetTotalPlayers() const { return (int)PlayerInfos.size(); }
 
 public:
-	std::unordered_map<int, PlayerCoord> PlayerCoords;
+	std::mutex PlayerInfoLock;
+	std::unordered_map<int, PlayerInfo> PlayerInfos;
+
 	int ID;
 	int PrevSize;
 	bool Dirty;
 
 private:
 	IOCP mIOCP;
+	RingBuffer mMsgQueue;
 	WSAOVERLAPPEDEX mRecvOverlapped;
+	std::thread mSocketThread;
+	
 	bool mLoop;
 
-	std::thread mSocketThread;
 };

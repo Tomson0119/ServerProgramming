@@ -74,7 +74,7 @@ bool D3DFramework::InitAndRunQueryWindow()
 		return false;
 
 	mQueryWindow->Run();*/
-	mServerIPAddress = "127.0.0.1";
+	mServerIPAddress = SERVER_IP;
 
 	return true;
 }

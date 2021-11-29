@@ -19,14 +19,15 @@ public:
 	virtual ~GameScene();
 
 	void BuildObjects(ID3D12Device* device, ID3D12GraphicsCommandList* cmdList);
+	void BuildD2DResources(HWND hwnd);
 
 	void UpdateConstants(Camera* camera);
 	void Update(const GameTimer& timer);
 
-	void UpdatePlayersCoord(const std::unordered_map<int, PlayerCoord>& coords);
+	void UpdatePlayersCoord(const std::unordered_map<int, PlayerInfo>& coords);
 
 	void AppendOrDeletePlayers(ID3D12Device* device, int myID,
-		const std::unordered_map<int, PlayerCoord>& coords);
+		const std::unordered_map<int, PlayerInfo>& coords);
 
 	void Draw(ID3D12GraphicsCommandList* cmdList);
 
@@ -49,6 +50,7 @@ private:
 	void BuildConstantBuffers(ID3D12Device* device);
 	void BuildShadersAndPSOs(ID3D12Device* device);
 	void BuildDescriptorHeap(ID3D12Device* device);
+	void BuildDWriteResources();
 
 private:
 	XMFLOAT4 mFrameColor = (XMFLOAT4)Colors::LightSkyBlue;
@@ -62,6 +64,11 @@ private:
 	std::unordered_map<std::string, std::unique_ptr<Texture>> mTextures;
 	
 	std::unordered_map<int, GameObject*> mPlayers;
-	
+
 	std::shared_ptr<Mesh> mPawnMesh;
+
+	ComPtr<ID2D1HwndRenderTarget> mD2DRenderTarget;
+	ComPtr<ID2D1SolidColorBrush> mColorBrush;
+	ComPtr<IDWriteFactory> mWriteFactory;
+	ComPtr<IDWriteTextFormat> mTextFormat;
 };

@@ -30,6 +30,7 @@ bool GameFramework::InitFramework()
 	mCamera->Pitch(90.0f);
 
 	mScenes.push(make_unique<GameScene>());
+	mScenes.top()->BuildD2DResources(m_hwnd);
 	mScenes.top()->BuildObjects(mD3dDevice.Get(), mCommandList.Get());
 
 	// Command List를 닫고 Queue에 명령어를 싣는다.
@@ -111,12 +112,16 @@ void GameFramework::Update()
 	mCamera->Update(mTimer.ElapsedTime());
 	if (!mScenes.empty())
 	{
+		mClientSck->PlayerInfoLock.lock();
+		const auto copyCoord = mClientSck->PlayerInfos;
+		mClientSck->PlayerInfoLock.unlock();
+
 		if (mClientSck->Dirty)
 		{
-			mScenes.top()->AppendOrDeletePlayers(mD3dDevice.Get(), mClientSck->ID, mClientSck->PlayerCoords);
+			mScenes.top()->AppendOrDeletePlayers(mD3dDevice.Get(), mClientSck->ID, copyCoord);
 			mClientSck->Dirty = false;
 		}
-		mScenes.top()->UpdatePlayersCoord(mClientSck->PlayerCoords);
+		mScenes.top()->UpdatePlayersCoord(copyCoord);
 		mScenes.top()->Update(mTimer);
 		mScenes.top()->UpdateConstants(mCamera.get());
 	}

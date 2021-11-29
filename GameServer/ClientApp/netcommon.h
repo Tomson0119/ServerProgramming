@@ -6,3 +6,4 @@
 #include "../Network/NetException.h"
 #include "../Network/Protocol.h"
 #include "../Network/IOCP.h"
+#include "../Network/RingBuffer.h"

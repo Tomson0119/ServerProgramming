@@ -2,10 +2,11 @@
 #include "clientSocket.h"
 
 ClientSocket::ClientSocket()
-	: ID(-1), 
+	: Socket(), ID(-1), 
 	  PrevSize(0), mLoop(true), 
 	  Dirty(false), mIOCP{}
 {
+	Init();
 }
 
 ClientSocket::~ClientSocket()
@@ -43,16 +44,17 @@ void ClientSocket::SendMovePacket(char input)
 		dir = 2;
 		break;
 	case 0x26:
-		dir = 0;
+		dir = 1;
 		break;
 	case 0x27:
 		dir = 3;
 		break;
 	case 0x28:
-		dir = 1;
+		dir = 0;
 		break;
 	}
 	move_packet.direction = dir;
+	std::cout << "Send Move Packet\n";
 	SendMsg(reinterpret_cast<char*>(&move_packet), move_packet.size);
 }
 
@@ -68,35 +70,40 @@ void ClientSocket::Disconnect()
 
 void ClientSocket::Update(ClientSocket& client)
 {
-	std::cout << "thread start..\n";
-	while (client.mLoop)
-	{
-		CompletionInfo info = client.mIOCP.GetCompletionInfo();
-		std::cout << "GQCS returned [";
-		WSAOVERLAPPEDEX* over_ex = reinterpret_cast<WSAOVERLAPPEDEX*>(info.overEx);
-		std::cout << (int)over_ex->Operation << "]\n";
-
-		if (info.success == FALSE)
+	try {
+		while (client.mLoop)
 		{
-			std::cout << "GQCS failed.. Disconnect client..\n";
+			CompletionInfo info = client.mIOCP.GetCompletionInfo();
+			WSAOVERLAPPEDEX* over_ex = reinterpret_cast<WSAOVERLAPPEDEX*>(info.overEx);
 
-			client.Disconnect();
-			if (over_ex->Operation == OP::SEND)
-				delete over_ex;
-			continue;
-		}
-
-		switch (over_ex->Operation)
-		{
-		case OP::RECV:
-			break;
-
-		case OP::SEND:
-			if (info.bytes != over_ex->WSABuffer.len)
+			if (info.success == FALSE)
+			{
 				client.Disconnect();
-			delete over_ex;
-			break;
+				if (over_ex->Operation == OP::SEND)
+					delete over_ex;
+				continue;
+			}
+
+			switch (over_ex->Operation)
+			{
+			case OP::RECV:
+			{
+				client.mMsgQueue.Push(over_ex->NetBuffer, info.bytes);
+				client.ProcessPackets();
+				client.RecvMsg();
+				break;
+			}
+			case OP::SEND:
+				if (info.bytes != over_ex->WSABuffer.len)
+					client.Disconnect();
+				delete over_ex;
+				break;
+			}
 		}
+	}
+	catch (std::exception& ex)
+	{
+		std::cout << ex.what() << std::endl;
 	}
 }
 
@@ -108,50 +115,71 @@ void ClientSocket::SendMsg(char* msg, int bytes)
 
 void ClientSocket::RecvMsg()
 {
-	/*mRecvOverlapped.Reset(OP::RECV, PrevSize);
-	Recv(&mRecvOverlapped);*/
+	mRecvOverlapped.Reset(OP::RECV);
+	Recv(mRecvOverlapped);
 }
 
-void ClientSocket::HandleMessage(unsigned char* msg)
+void ClientSocket::ProcessPackets()
 {
-	unsigned char type = msg[1];
-	switch (type)
+	while (!mMsgQueue.IsEmpty())
 	{
-	case SC_PACKET_LOGIN_OK:
-	{
-		sc_packet_login_ok* login_packet = reinterpret_cast<sc_packet_login_ok*>(msg);
-		ID = (int)login_packet->id;
-		PlayerCoords[ID] = { 0, 0 };
-		Dirty = true;
-		break;
-	}
-	case SC_PACKET_MOVE:
-	{
-		sc_packet_move* move_pck = reinterpret_cast<sc_packet_move*>(msg);
-		int mover = (int)move_pck->id;
-		short x = move_pck->x;
-		short y = move_pck->y;
-		PlayerCoords[mover] = { x,y };
-		break;
-	}
-	case SC_PACKET_PUT_OBJECT:
-	{
-		sc_packet_put_object* put_pck = reinterpret_cast<sc_packet_put_object*>(msg);
-		int newId = (int)put_pck->id;
-		char obj = put_pck->object_type;
-		short x = put_pck->x;
-		short y = put_pck->y;
-		PlayerCoords[newId] = { x,y };
-		Dirty = true;
-		break;
-	}
-	case SC_PACKET_REMOVE_OBJECT:
-	{
-		sc_packet_remove_object* remove_pck = reinterpret_cast<sc_packet_remove_object*>(msg);
-		int target = (int)remove_pck->id;
-		PlayerCoords.erase(target);
-		Dirty = true;
-		break;
-	}
-	}
+		char type = mMsgQueue.GetMsgType();
+		switch (type)
+		{
+		case SC_PACKET_LOGIN_OK:
+		{
+			sc_packet_login_ok login_packet{};
+			mMsgQueue.Pop(reinterpret_cast<uchar*>(&login_packet), sizeof(sc_packet_login_ok));
+			ID = login_packet.id;
+			PlayerInfoLock.lock();
+			PlayerInfos[ID] = { login_packet.x, login_packet.y };
+			PlayerInfoLock.unlock();
+			Dirty = true;
+			break;
+		}
+		case SC_PACKET_MOVE:
+		{
+			sc_packet_move move_pck{};
+			mMsgQueue.Pop(reinterpret_cast<uchar*>(&move_pck), sizeof(sc_packet_move));
+			int mover = move_pck.id;
+			PlayerInfoLock.lock();
+			PlayerInfos[mover] = { move_pck.x, move_pck.y };
+			PlayerInfoLock.unlock();
+			break;
+		}
+		case SC_PACKET_PUT_OBJECT:
+		{
+			sc_packet_put_object put_pck{};
+			mMsgQueue.Pop(reinterpret_cast<uchar*>(&put_pck), sizeof(sc_packet_put_object));
+			int newId = put_pck.id;
+			char obj = put_pck.object_type;
+			PlayerInfoLock.lock();
+			PlayerInfos[newId] = { put_pck.x,put_pck.y };
+			PlayerInfoLock.unlock();
+			Dirty = true;
+			break;
+		}
+		case SC_PACKET_REMOVE_OBJECT:
+		{
+			sc_packet_remove_object remove_pck{};
+			mMsgQueue.Pop(reinterpret_cast<uchar*>(&remove_pck), sizeof(sc_packet_remove_object));
+			PlayerInfoLock.lock();
+			PlayerInfos.erase(remove_pck.id);
+			PlayerInfoLock.unlock();
+			Dirty = true;
+			break;
+		}
+
+		case SC_PACKET_CHAT:
+		{
+			std::cout << "Chat Packet Arrived\n";
+			sc_packet_chat chat_pck{};
+			mMsgQueue.Pop(reinterpret_cast<uchar*>(&chat_pck), sizeof(sc_packet_chat));
+			PlayerInfoLock.lock();
+			strcpy_s(PlayerInfos[chat_pck.id].message, chat_pck.message);
+			PlayerInfoLock.unlock();
+			break;
+		}
+		}
+	}	
 }

@@ -29,6 +29,9 @@ public:
 	void SetLook(XMFLOAT3& look);
 	void SetMesh(const std::shared_ptr<Mesh>& mesh) { mMesh = mesh; }
 
+	void SetText(const std::wstring& text) { mText = text; }
+	std::wstring GetText() const { return mText; }
+
 public:
 	virtual void Strafe(float dist, bool local=true);
 	virtual void Upward(float dist, bool local=true);
@@ -77,6 +80,8 @@ protected:
 	GameObject* mParent = nullptr;
 	GameObject* mChild = nullptr;
 	GameObject* mSibling = nullptr;
+
+	std::wstring mText;
 };
 
 
