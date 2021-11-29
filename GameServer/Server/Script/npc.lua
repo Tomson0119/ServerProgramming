@@ -13,7 +13,7 @@ function event_player_move(player, dir, msg)
    if (player_x == my_x) then
       if (player_y == my_y) then
          API_SendMessage(myid, player, msg);
-         --API_AddTimer(myid, player, dir);
+         API_AddTimer(myid, player, dir);
       end
    end
 end
