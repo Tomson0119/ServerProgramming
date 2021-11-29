@@ -8,13 +8,10 @@
 WSAInit gWSAInstance;
 
 Socket::Socket()
+	: mSocket{}
 {
 	if (!gWSAInstance.Init())
 		throw NetException("WSAData Initialize failed");
-
-	mSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, 0, 0, WSA_FLAG_OVERLAPPED);
-	if (mSocket == INVALID_SOCKET)
-		throw NetException("Socket creation failed");
 }
 
 Socket::Socket(SOCKET sck)
@@ -24,8 +21,20 @@ Socket::Socket(SOCKET sck)
 
 Socket::~Socket()
 {
-	if(mSocket)
+	Disconnect();
+}
+
+void Socket::Disconnect()
+{
+	if (mSocket)
 		closesocket(mSocket);
+}
+
+void Socket::Init()
+{
+	mSocket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, 0, 0, WSA_FLAG_OVERLAPPED);
+	if (mSocket == INVALID_SOCKET)
+		throw NetException("Socket creation failed");
 }
 
 void Socket::Bind(const EndPoint& ep)
@@ -56,14 +65,15 @@ void Socket::AsyncAccept(WSAOVERLAPPEDEX& accept_ex)
 	}
 }
 
-void Socket::Connect(const EndPoint& ep)
+bool Socket::Connect(const EndPoint& ep)
 {
 	if (WSAConnect(mSocket,
 		reinterpret_cast<const sockaddr*>(&ep.address), 
 		sizeof(ep.address),	0, 0, 0, 0) != 0)
 	{
-		throw NetException("Connect failed");
+		return false;
 	}
+	return true;
 }
 
 int Socket::Send(WSAOVERLAPPEDEX& overlapped)
