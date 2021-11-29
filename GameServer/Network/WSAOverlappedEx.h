@@ -3,12 +3,15 @@
 #include "stdafx.h"
 #include "Socket.h"
 #include "Protocol.h"
+#include "RingBuffer.h"
 
 enum class OP : char
 {
 	RECV,
 	SEND,
-	ACCEPT
+	ACCEPT,
+	NPC_MOVE,
+	PLAYER_MOVE
 };
 
 struct WSAOVERLAPPEDEX
@@ -16,7 +19,12 @@ struct WSAOVERLAPPEDEX
 	WSAOVERLAPPED Overlapped;
 	WSABUF WSABuffer;
 	OP Operation;
+
 	uchar NetBuffer[MaxBufferSize];
+	RingBuffer MsgQueue;
+
+	int	Target;
+	int Random_direction;
 
 	WSAOVERLAPPEDEX(OP op = OP::RECV)
 		: Operation(op), WSABuffer{}, NetBuffer{}
