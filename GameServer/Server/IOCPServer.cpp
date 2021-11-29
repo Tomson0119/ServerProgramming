@@ -61,7 +61,7 @@ void IOCPServer::Run()
 
 	InitNPC();
 
-	for (int i = 0; i < 1; i++)
+	for (int i = 0; i < MaxThreads; i++)
 		mThreads.emplace_back(NetworkThreadFunc, std::ref(*this));
 	mTimerThread = std::thread{ TimerThreadFunc, std::ref(*this) };
 
@@ -137,16 +137,16 @@ void IOCPServer::HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, 
 
 	case OP::NPC_MOVE:
 	{
-		/*MoveNPC(id, over->Random_direction);
+		MoveNPC(id, over->Random_direction);
 		lua_State* ls = gClients[id]->Lua;
 		lua_getglobal(ls, "event_npc_move");
 		lua_pushnumber(ls, over->Target);
 		lua_pushnumber(ls, 3);
 		lua_pushnumber(ls, over->Random_direction);
 		lua_pushstring(ls, "Bye");
-		lua_pcall(ls, 4, 0, 0);	*/	
+		lua_pcall(ls, 4, 0, 0);		
 
-		MoveNPC(id, over->Random_direction);
+		/*MoveNPC(id, over->Random_direction);
 		bool keep_alive = false;
 		for (int i=0;i<NPC_ID_START;i++)
 		{
@@ -160,18 +160,18 @@ void IOCPServer::HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, 
 			}
 		}
 		if (keep_alive) AddTimer(id, over->Target, EventType::NPC_MOVE, rand()%4, 1000);
-		else gClients[id]->InitState(State::SLEEP);
+		else gClients[id]->InitState(State::SLEEP);*/
 		delete over;
 		break;
 	}
 	case OP::PLAYER_MOVE:
 	{
-		/*lua_State* ls = gClients[id]->Lua;
+		lua_State* ls = gClients[id]->Lua;
 		lua_getglobal(ls, "event_player_move");
 		lua_pushnumber(ls, over->Target);
 		lua_pushnumber(ls, rand() % 4);
 		lua_pushstring(ls, "Hello");
-		lua_pcall(ls, 3, 0, 0);*/
+		lua_pcall(ls, 3, 0, 0);
 		delete over;
 		break;
 	}
@@ -387,7 +387,7 @@ void IOCPServer::SendNewPlayerInfoToNearPlayers(int target)
 			continue;
 		if (other->IsStateWithoutLock(State::SLEEP))
 			ActivateNPC(other->ID);
-		if (IsNPC(other->ID) || !other->IsStateWithLock(State::INGAME))
+		if (IsNPC(other->ID) || !other->IsStateWithoutLock(State::INGAME))
 			continue;
 
 		other->InsertViewID(target);
@@ -401,7 +401,7 @@ void IOCPServer::SendNearPlayersInfoToNewPlayer(int sender)
 	{
 		if (client->ID == sender || !IsNear(client->ID, sender))
 			continue;
-		if (!client->IsStateWithLock(State::INGAME))
+		if (!client->IsStateWithoutLock(State::INGAME))
 			continue;
 
 		gClients[sender]->InsertViewID(client->ID);
@@ -542,7 +542,7 @@ void IOCPServer::AddTimer(int obj_id, int player_id, EventType type, int directi
 void IOCPServer::ActivateNPC(int id)
 {
 	if (gClients[id]->CompareAndChangeState(State::SLEEP, State::INGAME));
-		AddTimer(id, 0, EventType::NPC_MOVE, rand()%4, 1000);
+		//AddTimer(id, 0, EventType::NPC_MOVE, rand()%4, 1000);
 }
 
 void IOCPServer::ActivatePlayerMoveEvent(int target, int player)
