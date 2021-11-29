@@ -23,8 +23,13 @@ void RingBuffer::Clear()
 
 void RingBuffer::Push(uchar* msg, int size)
 {
-	if (IsFull() || size <= 0)
+	if (size <= 0)
 		return;
+	if (IsFull())
+	{
+		std::cout << "Buffer overflow!\n";
+		return;
+	}
 
 	int push_amount = 0;
 	if (m_remainSize >= size)
@@ -85,7 +90,8 @@ bool RingBuffer::IsFull()
 char RingBuffer::GetMsgType()
 {
 	char type;
-	std::memcpy(reinterpret_cast<void*>(&type), m_buffer + m_readIndex + 1, sizeof(char));
+	int typeIndex = (m_readIndex + 1) % MaxBufferSize;
+	std::memcpy(reinterpret_cast<void*>(&type), m_buffer + typeIndex, sizeof(char));
 	return type;
 }
 
