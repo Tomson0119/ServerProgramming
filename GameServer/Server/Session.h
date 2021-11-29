@@ -32,7 +32,6 @@ public:
 
 	void SendMsg(char* msg, int bytes);
 	void RecvMsg();
-	//void PushMsg(uchar* msg, int bytes);
 
 	bool IsSame(PlayerInfo& coord);
 	bool IsStateWithLock(State state);

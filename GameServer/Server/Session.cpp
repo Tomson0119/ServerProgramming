@@ -94,13 +94,6 @@ void Session::RecvMsg()
 	Recv(mRecvOverlapped);
 }
 
-//void Session::PushMsg(uchar* msg, int bytes)
-//{
-//	MsgQueLock.lock();
-//	MsgQueue.Push(msg, bytes);
-//	MsgQueLock.unlock();
-//}
-
 bool Session::IsSame(PlayerInfo& coord)
 {
 	return (Info.x == coord.x && Info.y == coord.y);
