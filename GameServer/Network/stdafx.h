@@ -7,17 +7,36 @@
 #pragma comment(lib, "ws2_32.lib")
 #pragma comment(lib, "MSWSock.lib")
 
+extern "C" {
+#include "include/lua.h"
+#include "include\lauxlib.h"
+#include "include\lualib.h"
+}
+#pragma comment (lib, "lua54.lib")
+
 #include <iostream>
 #include <vector>
 #include <string>
 #include <algorithm>
 #include <exception>
 #include <array>
+#include <mutex>
+#include <thread>
+#include <atomic>
 #include <unordered_map>
 #include <unordered_set>
-#include <mutex>
+#include <concurrent_priority_queue.h>
 
 #include "NetException.h"
 #include "Protocol.h"
 
+using namespace std::chrono_literals;
+
 typedef unsigned char uchar;
+
+struct PlayerInfo
+{
+	short x;
+	short y;
+	char message[MAX_CHAT_SIZE];
+};
