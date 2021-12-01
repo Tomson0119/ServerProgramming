@@ -49,7 +49,7 @@ void Session::InsertViewID(int id)
 	ViewListLock.unlock();
 }
 
-bool Session::EraseViewID(int id)
+void Session::EraseViewID(int id)
 {
 	ViewListLock.lock();
 	mViewList.erase(id);

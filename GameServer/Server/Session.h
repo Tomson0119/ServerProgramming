@@ -28,7 +28,7 @@ public:
 	void InsertViewID(int id);
 	bool FindAndInsertViewID(int id);
 	bool FindAndEraseViewID(int id);
-	bool EraseViewID(int id);
+	void EraseViewID(int id);
 
 	void SendMsg(char* msg, int bytes);
 	void RecvMsg();
@@ -52,7 +52,6 @@ public:
 
 	std::mutex ViewListLock;
 	std::mutex MsgQueLock;
-	//RingBuffer MsgQueue;
 
 	lua_State* Lua;
 
