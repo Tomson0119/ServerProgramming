@@ -38,7 +38,6 @@ struct cs_packet_login
 {
 	unsigned char size;
 	char	      type;
-	char		  name[MAX_NAME_SIZE];
 };
 
 struct cs_packet_move 
@@ -61,6 +60,7 @@ struct sc_packet_login_ok
 	char		  type;
 	int			  id;
 	short		  x, y;
+	char		  name[MAX_NAME_SIZE];
 };
 
 struct sc_packet_move 
