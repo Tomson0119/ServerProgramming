@@ -8,6 +8,11 @@ concurrency::concurrent_priority_queue<TimerEvent> IOCPServer::gTimerQueue;
 IOCPServer::IOCPServer(const EndPoint& ep)
 	: mLoop(true)
 {
+	if (mDBHandler.ConnectToDB(L"sql_server") == false)
+		std::cout << "failed to connect to DB\n";
+	if (mDBHandler.FindPlayerID("list234"))
+		std::cout << "Found player\n";
+
 	for (int i = 0; i < gClients.size(); i++) {
 		gClients[i] = std::make_shared<Session>();
 		gClients[i]->ID = i;
@@ -31,7 +36,7 @@ void IOCPServer::InitNPC()
 		gClients[i]->Type = ClientType::NPC;
 		gClients[i]->InitState(State::SLEEP);
 
-		/*lua_State* ls = luaL_newstate();
+		lua_State* ls = luaL_newstate();
 		gClients[i]->Lua = ls;
 		luaL_openlibs(ls);
 		luaL_loadfile(ls, "Script\\npc.lua");
@@ -45,7 +50,7 @@ void IOCPServer::InitNPC()
 		lua_register(ls, "API_AddTimer", API_AddTimer);
 		lua_register(ls, "API_SendMessage", API_SendMessage);
 		lua_register(ls, "API_get_x", API_get_x);
-		lua_register(ls, "API_get_y", API_get_y);*/
+		lua_register(ls, "API_get_y", API_get_y);
 	}
 	std::cout << "Done Initializing NPC\n";
 }
@@ -109,7 +114,6 @@ void IOCPServer::HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, 
 			break;
 		}
 		Session* client = gClients[id].get();
-		//std::cout << "Received Msg [" << id << "]\n";
 		over->MsgQueue.Push(over->NetBuffer, bytes);
 		ProcessPackets(id, over->MsgQueue);
 		client->RecvMsg();
@@ -290,7 +294,7 @@ void IOCPServer::AcceptNewClient(int id, SOCKET sck)
 	gClients[id]->AssignAcceptedID(id, sck);
 	gClients[id]->Info.x = rand() % WORLD_WIDTH;
 	gClients[id]->Info.y = rand() % WORLD_HEIGHT;
-
+	sprintf_s(gClients[id]->Name, "PLAYER%d", id);
 	mIOCP.RegisterDevice(sck, id);
 	gClients[id]->RecvMsg();
 }
@@ -351,13 +355,6 @@ void IOCPServer::ProcessPackets(int id, RingBuffer& msgQueue)
 			HandleDisappearedPlayers(nearlist, viewlist, id);
 			break;
 		}
-		case CS_PACKET_QUIT:
-		{
-			cs_packet_quit quit_packet{};
-			msgQueue.Pop(reinterpret_cast<uchar*>(&quit_packet), sizeof(cs_packet_quit));
-			Disconnect(id);
-			break;
-		}
 		default:
 			std::cout << "Unkown packet\n";
 			return;
@@ -372,7 +369,6 @@ void IOCPServer::ProcessLoginPacket(cs_packet_login& pck, int myId)
 		std::cout << "Client is not in accept state [" << myId << "]\n";
 		return;
 	}
-	strcpy_s(gClients[myId]->Name, pck.name);
 
 	SendLoginOkPacket(myId);
 	SendNewPlayerInfoToNearPlayers(myId);
@@ -458,6 +454,7 @@ void IOCPServer::SendLoginOkPacket(int id)
 	ok_packet.type = SC_PACKET_LOGIN_OK;
 	ok_packet.x = gClients[id]->Info.x;
 	ok_packet.y = gClients[id]->Info.y;
+	strcpy_s(ok_packet.name, gClients[id]->Name);
 	gClients[id]->SendMsg(reinterpret_cast<char*>(&ok_packet), sizeof(ok_packet));
 }
 
@@ -552,30 +549,30 @@ void IOCPServer::ActivatePlayerMoveEvent(int target, int player)
 	mIOCP.PostToCompletionQueue(over_ex, target);
 }
 
-std::pair<short, short> IOCPServer::GetSectorIndex(int id)
-{
-	short x = gClients[id]->Info.x;
-	short y = gClients[id]->Info.y;
-	return { x / SECTOR_WIDTH, y / SECTOR_HEIGHT };
-}
-
-void IOCPServer::InsertIntoSectorWithLock(int id)
-{
-	/*auto sector = GetSectorIndex(id);
-
-	mSectorLock.lock();
-	gSectors[sector.first][sector.second].insert(id);
-	mSectorLock.unlock();*/
-}
-
-void IOCPServer::EraseFromSectorWidthLock(int id)
-{
-	auto sector = GetSectorIndex(id);
-
-	/*mSectorLock.lock();
-	gSectors[sector.first][sector.second].erase(id);
-	mSectorLock.unlock();*/
-}
+//std::pair<short, short> IOCPServer::GetSectorIndex(int id)
+//{
+//	short x = gClients[id]->Info.x;
+//	short y = gClients[id]->Info.y;
+//	return { x / SECTOR_WIDTH, y / SECTOR_HEIGHT };
+//}
+//
+//void IOCPServer::InsertIntoSectorWithLock(int id)
+//{
+//	/*auto sector = GetSectorIndex(id);
+//
+//	mSectorLock.lock();
+//	gSectors[sector.first][sector.second].insert(id);
+//	mSectorLock.unlock();*/
+//}
+//
+//void IOCPServer::EraseFromSectorWidthLock(int id)
+//{
+//	auto sector = GetSectorIndex(id);
+//
+//	/*mSectorLock.lock();
+//	gSectors[sector.first][sector.second].erase(id);
+//	mSectorLock.unlock();*/
+//}
 
 int IOCPServer::API_AddTimer(lua_State* ls)
 {

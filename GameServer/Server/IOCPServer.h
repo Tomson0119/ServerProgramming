@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Session.h"
+#include "DBHandler.h"
 
 class IOCPServer
 {
@@ -73,4 +74,6 @@ private:
 	std::vector<std::thread> mThreads;
 	std::thread mTimerThread;
 	std::atomic_bool mLoop;
+
+	DBHandler mDBHandler;
 };
