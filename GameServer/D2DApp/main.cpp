@@ -11,14 +11,14 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE, PWSTR, int nCmdShow)
 	{
 		D2DApp app;
 		if (!app.Init())
-			throw D2DException("Failed to initialize");
+			throw D2DException(L"Failed to initialize");
 		app.Run();
 
 		return 0;
 	}
-	catch (std::exception& ex)
+	catch (D2DException& ex)
 	{
-		MessageBoxA(NULL, ex.what(), "Error", MB_OK);
+		MessageBoxW(NULL, ex.what(), L"Error", MB_OK);
 		return 0;
 	}
 }

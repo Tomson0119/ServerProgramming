@@ -7,8 +7,6 @@ class Timer;
 class QueryWindow;
 class NetClient;
 
-//#define QUERY_SERVER_IP
-
 class D2DApp : public Window<D2DApp>
 {
 public:

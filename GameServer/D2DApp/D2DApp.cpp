@@ -18,14 +18,18 @@ D2DApp::D2DApp()
 
 D2DApp::~D2DApp()
 {
+	//CoUninitialize();
 }
 
 bool D2DApp::Init()
 {
-	if (!Window::Init({ 800, 800 }, L"D2DApp", L"MainWindow")) return false;
+	if (FAILED(CoInitializeEx(NULL, COINIT_MULTITHREADED))) return false;
+	if (!Window::Init({ 780, 800 }, L"D2DApp", L"MainWindow")) return false;
 	if (!mGraphics->Init(mHwnd)) return false;
-	if (!InitNetwork()) return false;
 
+#ifndef STANDARD_ALONE
+	if (!InitNetwork()) return false;
+#endif
 	return true;
 }
 
@@ -80,18 +84,29 @@ LRESULT D2DApp::OnProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam)
 		break;
 
 	case WM_DESTROY:
+	{
+	#ifndef STANDARD_ALONE
 		mNetwork->Disconnect();
+	#endif
 		PostQuitMessage(0);
 		return 0;
-
+	}
 	case WM_KEYUP:
 		if (wParam == VK_ESCAPE)
 		{
+		#ifndef STANDARD_ALONE
 			mNetwork->Disconnect();
+		#endif
 			PostQuitMessage(0);
+			return 0;
 		}
 		break;
 
+	case WM_KEYDOWN:
+	{
+		mNetwork->SendMovePacket(wParam);
+		break;
+	}
 	case WM_LBUTTONDOWN:
 	case WM_MOUSEMOVE:
 	case WM_LBUTTONUP:

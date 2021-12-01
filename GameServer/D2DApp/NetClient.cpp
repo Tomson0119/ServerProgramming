@@ -12,7 +12,8 @@ NetClient::NetClient()
 
 NetClient::~NetClient()
 {
-	mSocketThread.join();
+	if(mSocketThread.joinable())
+		mSocketThread.join();
 }
 
 void NetClient::Start(GraphicScene* scene)
@@ -45,46 +46,42 @@ void NetClient::SendMovePacket(char input)
 		dir = 2;
 		break;
 	case 0x26:
-		dir = 1;
+		dir = 0;
 		break;
 	case 0x27:
 		dir = 3;
 		break;
 	case 0x28:
-		dir = 0;
+		dir = 1;
 		break;
 	}
 	move_packet.direction = dir;
-	std::cout << "Send Move Packet\n";
 	SendMsg(reinterpret_cast<char*>(&move_packet), move_packet.size);
 }
 
 void NetClient::Disconnect()
 {
-	std::cout << "Disconnect\n";
-	mLoop = false;
-	cs_packet_quit pck{};
-	pck.size = sizeof(cs_packet_quit);
-	pck.type = CS_PACKET_QUIT;
-	SendMsg(reinterpret_cast<char*>(&pck), pck.size);
+	mIOCP.PostToCompletionQueue(nullptr, 0);
 }
 
 void NetClient::Update(NetClient& client)
 {
-	CoInitializeEx(NULL, COINIT_MULTITHREADED);
-
 	try {
+		if (FAILED(CoInitializeEx(NULL, COINIT_MULTITHREADED)))
+			throw NetException("CoInitializeEx failed");
+		
 		while (client.mLoop)
 		{
 			CompletionInfo info = client.mIOCP.GetCompletionInfo();
 			WSAOVERLAPPEDEX* over_ex = reinterpret_cast<WSAOVERLAPPEDEX*>(info.overEx);
-
+			
+			if (over_ex == nullptr)
+				break;
 			if (info.success == FALSE)
 			{
-				client.Disconnect();
 				if (over_ex->Operation == OP::SEND)
 					delete over_ex;
-				continue;
+				break;
 			}
 
 			switch (over_ex->Operation)
@@ -134,46 +131,42 @@ void NetClient::ProcessPackets()
 		{
 			sc_packet_login_ok login_packet{};
 			mMsgQueue.Pop(reinterpret_cast<uchar*>(&login_packet), sizeof(sc_packet_login_ok));
-			ID = login_packet.id;
-			//PlayerCoordLock.lock();
-			PlayerCoords[ID] = { login_packet.x, login_packet.y };
-			OutputDebugStringW(L"Received Login Ok packet\n");
-			mScene->BuildMap();
-			//PlayerCoordLock.unlock();
-			//Dirty = true;
+			mScene->InitializePlayer(login_packet.id, login_packet.name, login_packet.x, login_packet.y);
 			break;
 		}
 		case SC_PACKET_MOVE:
 		{
 			sc_packet_move move_pck{};
 			mMsgQueue.Pop(reinterpret_cast<uchar*>(&move_pck), sizeof(sc_packet_move));
-			int mover = move_pck.id;
-			PlayerCoordLock.lock();
-			PlayerCoords[mover] = { move_pck.x, move_pck.y };
-			PlayerCoordLock.unlock();
+			mScene->UpdatePlayerPosition(move_pck.id, move_pck.x, move_pck.y);
 			break;
 		}
 		case SC_PACKET_PUT_OBJECT:
 		{
 			sc_packet_put_object put_pck{};
 			mMsgQueue.Pop(reinterpret_cast<uchar*>(&put_pck), sizeof(sc_packet_put_object));
-			int newId = put_pck.id;
-			char obj = put_pck.object_type;
-			PlayerCoordLock.lock();
-			PlayerCoords[newId] = { put_pck.x,put_pck.y };
-			PlayerCoordLock.unlock();
-			Dirty = true;
+			mScene->CreateNewObject(put_pck.id, put_pck.object_type, put_pck.name, put_pck.x, put_pck.y);
 			break;
 		}
 		case SC_PACKET_REMOVE_OBJECT:
 		{
 			sc_packet_remove_object remove_pck{};
 			mMsgQueue.Pop(reinterpret_cast<uchar*>(&remove_pck), sizeof(sc_packet_remove_object));
-			PlayerCoordLock.lock();
-			PlayerCoords.erase(remove_pck.id);
-			PlayerCoordLock.unlock();
-			Dirty = true;
+			mScene->EraseObject(remove_pck.id);
 			break;
+		}
+		case SC_PACKET_CHAT:
+		{
+			sc_packet_chat chat_pck{};
+			mMsgQueue.Pop(reinterpret_cast<uchar*>(&chat_pck), sizeof(sc_packet_chat));
+			mScene->UpdatePlayerChat(chat_pck.id, chat_pck.message);
+			break;
+		}
+		default:
+		{
+			OutputDebugStringW(L"Unkown packet\n");
+			Disconnect();
+			return;
 		}
 		}
 	}

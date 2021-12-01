@@ -9,13 +9,17 @@
 
 #include <Windows.h>
 #include <wrl.h>
-#include <d2d1_1.h>
-#include <dwrite.h>
+#include <d3d11_3.h>
+#include <d2d1_3.h>
+#include <d2d1effects_2.h>
+#include <dwrite_3.h>
+#include <d2d1helper.h>
 #include <wincodec.h>
-#include <d2d1effects.h>
+#include <comdef.h>
 
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "DWrite.lib")
+#pragma comment(lib, "d3d11.lib")
 
 #include <iostream>
 #include <memory>
@@ -25,16 +29,28 @@
 #include <unordered_map>
 #include <array>
 #include <assert.h>
+#include <algorithm>
+
 
 using Microsoft::WRL::ComPtr;
 using D2D1::ColorF;
 
+//#define QUERY_SERVER_IP
+//#define STANDARD_ALONE
 
 struct POINT_INT
 {
 	int x;
 	int y;
 };
+
+inline std::wstring CharToWString(const std::string& str)
+{
+	int size = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
+	std::wstring wstr(size, 0);
+	MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstr[0], size);
+	return wstr;
+}
 
 
 inline float RandFloat()
@@ -43,15 +59,38 @@ inline float RandFloat()
 }
 
 
-class D2DException : public std::exception
+inline std::wstring AnsiToWString(const std::string& str)
+{
+	WCHAR buffer[512];
+	MultiByteToWideChar(CP_ACP, 0, str.c_str(), -1, buffer, 512);
+	return std::wstring(buffer);
+}
+
+#ifndef ThrowIfFailed
+#define ThrowIfFailed(f)												\
+{																		\
+	HRESULT hr_ = (f);													\
+	std::wstring wfn = AnsiToWString(__FILE__);							\
+	if (FAILED(hr_))	{ throw D2DException(hr_, L#f, wfn, __LINE__); } \
+}																		
+#endif
+
+
+class D2DException
 {
 public:
-	D2DException(const std::string& errorString);
-	virtual ~D2DException() { }
+	D2DException(const std::wstring& info);
+	D2DException(HRESULT hr, const std::wstring& functionName,
+		const std::wstring& fileName, int lineNumber);
+	~D2DException();
 
-	virtual const char* what() const;
+	const wchar_t* what() const;
 
 private:
-	std::string mErrorString;
-};
+	std::wstring mErrorString;
 
+	HRESULT mError = S_OK;
+	std::wstring mFuncName;
+	std::wstring mFileName;
+	int mLineNumber = -1;
+};

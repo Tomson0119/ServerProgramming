@@ -4,29 +4,23 @@
 
 
 GameObject::GameObject(ID2D1HwndRenderTarget* rt)
-	: mRTSize(rt->GetSize())
+	: mRTSize(rt->GetSize()), mChatActive(false)
 {
-	
 }
 
 GameObject::~GameObject()
 {
 }
 
-void GameObject::SetShape(std::unique_ptr<Shape>&& newShape)
-{
-	mShape = std::move(newShape);
-}
-
 void GameObject::SetColor(ID2D1HwndRenderTarget* rt, const D2D1_COLOR_F& color)
 {
-	HRESULT result = rt->CreateSolidColorBrush(color, mSolidColorBrush.GetAddressOf());
-	if (FAILED(result)) throw D2DException("Failed to create brush");
+	ThrowIfFailed(rt->CreateSolidColorBrush(color, mSolidColorBrush.GetAddressOf()));
 }
 
-void GameObject::SetImage(ID2D1Bitmap* bitmap)
+void GameObject::SetChat(const std::wstring& chat)
 {
-	mImage = bitmap;
+	mChat = chat;
+	mChatActive = true;
 }
 
 void GameObject::SetPosition(const D2D1_POINT_2F& pos)
@@ -55,30 +49,71 @@ void GameObject::Scale(float sx, float sy)
 void GameObject::Draw(ID2D1HwndRenderTarget* rt, IDWriteTextFormat* textFormat)
 {
 	SetTransform(rt);
-
 	
-	mShape->DrawShape(rt, mImage, mPosition);
-		
-	/*if (mIsWired)
-		mShape->DrawShape(rt, mSolidColorBrush.Get(), mCenterCoord);
+	if(mImage)
+		mShape->DrawShape(rt, mImage);
 	else
-		mShape->FillShape(rt, mSolidColorBrush.Get(), mCenterCoord);
+	{
+		if (mIsWired)
+			mShape->DrawShape(rt, mSolidColorBrush.Get());
+		else
+			mShape->FillShape(rt, mSolidColorBrush.Get());
+	}
+}
 
-	std::wstring str = L"안녕하신가요?";
-	rt->DrawText(str.c_str(), str.size(), textFormat,
-		D2D1::RectF(0, 0, rt->GetSize().width, rt->GetSize().height),
-		mSolidColorBrush.Get());*/
+void GameObject::DrawIDLabel(
+	ID2D1HwndRenderTarget* rt, 
+	IDWriteTextFormat* textFormat,
+	ID2D1SolidColorBrush* textColor)
+{
+	if (mID.size() == 0)
+		return;
+
+	D2D1_SIZE_F shape_size = mShape->GetSize();
+	float hh = shape_size.height * 0.5f;
+	float w = shape_size.width * 1.5f;
+
+	float font_size = textFormat->GetFontSize();
+	rt->DrawText(mID.c_str(), (UINT32)mID.size(), textFormat, { -w, hh, +w, hh + font_size }, textColor);
+}
+
+void GameObject::DrawChatLabel(
+	ID2D1HwndRenderTarget* rt,
+	IDWriteTextFormat* textFormat,
+	ID2D1SolidColorBrush* textColor)
+{
+	if (mChat.size() == 0)
+		return;
+
+	D2D1_SIZE_F shape_size = mShape->GetSize();
+	float hh = shape_size.height * 0.5f;
+	float w = shape_size.width * 1.5f;
+	float offset_y = 10.0f;
+
+	float font_size = textFormat->GetFontSize();
+	rt->DrawText(mChat.c_str(), (UINT32)mChat.size(), textFormat, { -w, -hh - font_size- offset_y, +w, -hh }, textColor);
 }
 
 void GameObject::SetTransform(ID2D1HwndRenderTarget* rt)
 {
+	D2D1_MATRIX_3X2_F translation = D2D1::Matrix3x2F::Translation(mPosition.x, mPosition.y);
 	D2D1_MATRIX_3X2_F rotation = D2D1::Matrix3x2F::Rotation(mRotationDegree, mPosition);
 	D2D1_MATRIX_3X2_F scale = D2D1::Matrix3x2F::Scale(mScale, mPosition);
 
-	rt->SetTransform(scale * rotation);
+	rt->SetTransform(*mCameraMat * translation);
 }
 
 void GameObject::Update(const float elapsed)
 {
-	//mRotationDegree += 100.0f * elapsed;
+	if (mChatActive)
+	{
+		static float accum_time = 0.0f;
+		accum_time += elapsed;
+		if (accum_time > 1.0f)
+		{
+			mChat.clear();
+			accum_time = 0.0f;
+			mChatActive = false;
+		}
+	}
 }

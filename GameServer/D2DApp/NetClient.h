@@ -21,11 +21,11 @@ public:
 	void RecvMsg();
 	void ProcessPackets();
 
-	int GetTotalPlayers() const { return (int)PlayerCoords.size(); }
+	int GetTotalPlayers() const { return (int)PlayerInfos.size(); }
 
 public:
 	std::mutex PlayerCoordLock;
-	std::unordered_map<int, PlayerCoord> PlayerCoords;
+	std::unordered_map<int, PlayerInfo> PlayerInfos;
 
 	int ID;
 	int PrevSize;
@@ -40,6 +40,5 @@ private:
 
 	GraphicScene* mScene;
 
-	bool mLoop;
-
+	std::atomic_bool mLoop;
 };
