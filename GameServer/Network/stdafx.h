@@ -36,7 +36,9 @@ typedef unsigned char uchar;
 
 struct PlayerInfo
 {
+	int id;
 	short x;
 	short y;
 	char message[MAX_CHAT_SIZE];
+	char name[MAX_NAME_SIZE];
 };
