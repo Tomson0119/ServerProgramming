@@ -35,7 +35,7 @@
 using Microsoft::WRL::ComPtr;
 using D2D1::ColorF;
 
-//#define QUERY_SERVER_IP
+//#define LOCAL_ADDRESS
 //#define STANDARD_ALONE
 
 struct POINT_INT
