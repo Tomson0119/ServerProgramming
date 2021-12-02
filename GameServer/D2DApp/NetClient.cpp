@@ -3,9 +3,8 @@
 #include "Graphics.h"
 
 NetClient::NetClient()
-	: Socket(), ID(-1),
-	  PrevSize(0), mLoop(true),
-	  Dirty(false), mIOCP{}, mScene()
+	: Socket(), mLoop(true),
+	  mIOCP{}, mScene()
 {
 	Init();
 }
@@ -16,21 +15,22 @@ NetClient::~NetClient()
 		mSocketThread.join();
 }
 
-void NetClient::Start(GraphicScene* scene)
+void NetClient::Start(GraphicScene* scene, const char* name)
 {
 	mScene = scene;
 
 	mIOCP.RegisterDevice(mSocket, 0);
 	mSocketThread = std::thread{ NetClient::Update, std::ref(*this) };
 	RecvMsg();
-	SendLoginPacket();
+	SendLoginPacket(name);
 }
 
-void NetClient::SendLoginPacket()
+void NetClient::SendLoginPacket(const char* name)
 {
 	cs_packet_login login_packet{};
 	login_packet.size = sizeof(cs_packet_login);
 	login_packet.type = CS_PACKET_LOGIN;
+	strcpy_s(login_packet.name, name);
 	SendMsg(reinterpret_cast<char*>(&login_packet), login_packet.size);
 }
 
@@ -61,6 +61,7 @@ void NetClient::SendMovePacket(char input)
 
 void NetClient::Disconnect()
 {
+	mLoop = false;
 	mIOCP.PostToCompletionQueue(nullptr, 0);
 }
 
@@ -131,6 +132,12 @@ void NetClient::ProcessPackets()
 		{
 			sc_packet_login_ok login_packet{};
 			mMsgQueue.Pop(reinterpret_cast<uchar*>(&login_packet), sizeof(sc_packet_login_ok));
+			if (login_packet.success == false) 
+			{
+				OutputDebugString(L"Login failed\n");
+				Disconnect();
+				return;
+			}
 			mScene->InitializePlayer(login_packet.id, login_packet.name, login_packet.x, login_packet.y);
 			break;
 		}

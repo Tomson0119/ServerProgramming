@@ -8,9 +8,9 @@ public:
 	NetClient();
 	virtual ~NetClient();
 
-	void Start(GraphicScene* scene);
+	void Start(GraphicScene* scene, const char* name);
 
-	void SendLoginPacket();
+	void SendLoginPacket(const char* name);
 	void SendMovePacket(char input);
 
 	void Disconnect();
@@ -21,24 +21,13 @@ public:
 	void RecvMsg();
 	void ProcessPackets();
 
-	int GetTotalPlayers() const { return (int)PlayerInfos.size(); }
-
-public:
-	std::mutex PlayerCoordLock;
-	std::unordered_map<int, PlayerInfo> PlayerInfos;
-
-	int ID;
-	int PrevSize;
-	bool Dirty;
-
 private:
 	IOCP mIOCP;
 	RingBuffer mMsgQueue;
 	WSAOVERLAPPEDEX mRecvOverlapped;
 
 	std::thread mSocketThread;
+	std::atomic_bool mLoop;
 
 	GraphicScene* mScene;
-
-	std::atomic_bool mLoop;
 };
