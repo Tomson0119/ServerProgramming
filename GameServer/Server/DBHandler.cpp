@@ -37,33 +37,45 @@ bool DBHandler::ConnectToDB(const std::wstring& sourcename)
 	return true;
 }
 
-bool DBHandler::FindPlayerID(const std::string& player_id)
+std::tuple<bool, short, short> DBHandler::FindPlayerInfo(const std::string& player_id)
 {
-	std::wstring query = L"EXEC find_player_id ";
+	std::wstring query = L"EXEC find_player_info ";
 	query.insert(query.end(), player_id.begin(), player_id.end());
 
 	RETCODE ret = SQLExecDirect(m_hStmt, (SQLWCHAR*)query.c_str() , SQL_NTS);
-	if (PrintIfError(m_hStmt, SQL_HANDLE_STMT, ret)) return false;
+	if (PrintIfError(m_hStmt, SQL_HANDLE_STMT, ret)) return { false, -10, -10 };
 
-	SQLVARCHAR retID[20]{};
-	SQLLEN cbID = 0;
-	ret = SQLBindCol(m_hStmt, 1, SQL_C_CHAR, &retID, 20, &cbID);
-	if (PrintIfError(m_hStmt, SQL_HANDLE_STMT, ret)) return false;
-
-	for (int i = 0;; i++)
-	{
-		ret = SQLFetch(m_hStmt);
-		PrintIfError(m_hStmt, SQL_HANDLE_STMT, ret);
-
-		if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) 
-			return true;
-		else break;
+	SQLSMALLINT retX = 0, retY = 0;
+	SQLLEN cbX = 0, cbY = 0;
+	SQLBindCol(m_hStmt, 1, SQL_C_SHORT, &retX, 2, &cbX);
+	SQLBindCol(m_hStmt, 2, SQL_C_SHORT, &retY, 2, &cbY);
+	
+	ret = SQLFetch(m_hStmt);
+	if (PrintIfError(m_hStmt, SQL_HANDLE_STMT, ret)) {
+		SQLCloseCursor(m_hStmt);
+		return { false, -10, -10 };
 	}
 
-	if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO)
-		SQLCancel(m_hStmt);
+	SQLCancel(m_hStmt);
+	SQLCloseCursor(m_hStmt);
+	return { true, retX, retY };
+}
 
-	return false;
+bool DBHandler::UpdatePlayerPosition(const std::string& player_id, short x, short y)
+{
+	std::wstring query = L"EXEC update_player_position ";
+	query.insert(query.end(), player_id.begin(), player_id.end());
+	query += L", " + std::to_wstring(x) + L", " + std::to_wstring(y);
+
+	RETCODE ret = SQLExecDirect(m_hStmt, (SQLWCHAR*)query.c_str(), SQL_NTS);
+	if (PrintIfError(m_hStmt, SQL_HANDLE_STMT, ret)) return false;
+
+	if (ret == SQL_SUCCESS || ret == SQL_SUCCESS_WITH_INFO) {
+		SQLCancel(m_hStmt);
+	}
+
+	SQLCloseCursor(m_hStmt);
+	return true;
 }
 
 bool DBHandler::PrintIfError(SQLHANDLE handle, SQLSMALLINT type, RETCODE retCode)
