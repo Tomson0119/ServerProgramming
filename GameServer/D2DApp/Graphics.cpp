@@ -71,7 +71,7 @@ bool GraphicScene::CreateDirectWriteResources()
 		DWRITE_FONT_WEIGHT_BOLD,
 		DWRITE_FONT_STYLE_NORMAL,
 		DWRITE_FONT_STRETCH_NORMAL,
-		16.0f, L"ko-kr", mTextFormat.GetAddressOf()));
+		20.0f, L"ko-kr", mTextFormat.GetAddressOf()));
 
 	ThrowIfFailed(mTextFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER));
 	ThrowIfFailed(mTextFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER));
@@ -118,10 +118,22 @@ void GraphicScene::CreateNewObject(int id, char obj_type, char* name, short x, s
 {
 	mMovingObjects[id] = std::make_unique<GameObject>(mRenderTarget.Get());
 	mMovingObjects[id]->SetShape(std::make_unique<Circle>(16.0f));
-	mMovingObjects[id]->SetColor(mRenderTarget.Get(), D2D1::ColorF(1.0f, 0.0f, 0.0f, 1.0f));
+	
+	switch (obj_type)
+	{
+	case 0:
+		mMovingObjects[id]->SetColor(mRenderTarget.Get(), D2D1::ColorF(1.0f, 0.0f, 0.0f, 1.0f));
+		break;
+
+	case 1:
+		mMovingObjects[id]->SetColor(mRenderTarget.Get(), D2D1::ColorF(0.0f, 1.0f, 0.0f, 1.0f));
+		break;
+	}		
+	
 	mMovingObjects[id]->SetID(CharToWString(name));
 	mMovingObjects[id]->SetCamera(&mCameraMatrix);
-	mMovingObjects[id]->SetPosition({ 
+	mMovingObjects[id]->SetCoord(x, y);
+	mMovingObjects[id]->SetPosition({
 		(float)x * mPlayerOffset.x * 2 + mPlayerOffset.x, 
 		(float)y * mPlayerOffset.y * 2 + mPlayerOffset.y });
 }
@@ -135,7 +147,7 @@ void GraphicScene::UpdatePlayerPosition(int id, short x, short y)
 		OutputDebugStringA(ss.str().c_str());
 		return;
 	}
-	
+	mMovingObjects[id]->SetCoord(x, y);
 	mMovingObjects[id]->SetPosition({
 		(float)x * mPlayerOffset.x * 2 + mPlayerOffset.x,
 		(float)y * mPlayerOffset.y * 2 + mPlayerOffset.y });
@@ -188,7 +200,8 @@ void GraphicScene::Draw()
 		movingObj->Draw(mRenderTarget.Get(), mTextFormat.Get());
 		movingObj->DrawIDLabel(mRenderTarget.Get(), mTextFormat.Get(), mIDLabelColorBrush.Get());
 		movingObj->DrawChatLabel(mRenderTarget.Get(), mTextFormat.Get(), mChatLabelColorBrush.Get());
-	}	
+	}
+	if (mPlayer) mPlayer->DrawPositionLabel(mRenderTarget.Get(), mTextFormat.Get(), mIDLabelColorBrush.Get());
 	mRenderTarget->EndDraw();
 }
 
@@ -196,9 +209,10 @@ void GraphicScene::Update(const float elapsed)
 {
 	OnProcessKeyInput(elapsed);
 
+	if (mPlayer == nullptr) return;
 	D2D1_POINT_2F player_pos = mPlayer->GetPosition();
 	D2D1_SIZE_F rt_size = mRenderTarget->GetSize();
-	
+
 	float player_pos_x = player_pos.x - rt_size.width * 0.5f;
 	float player_pos_y = player_pos.y - rt_size.height * 0.5f;
 	mCameraMatrix = D2D1::Matrix3x2F::Translation(-player_pos_x, -player_pos_y);

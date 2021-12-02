@@ -11,7 +11,9 @@ public:
 
 	bool Init(const HWND& hwnd);
 
-	void Draw();	
+	void Draw();
+	void DrawPositionText();
+
 	void Update(const float elapsed);
 	void Resize(const HWND& hwnd);
 
