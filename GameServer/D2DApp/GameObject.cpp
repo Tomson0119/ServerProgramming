@@ -4,7 +4,7 @@
 
 
 GameObject::GameObject(ID2D1HwndRenderTarget* rt)
-	: mRTSize(rt->GetSize()), mChatActive(false)
+	: mRTSize(rt->GetSize()), mChatActive(false), mPosX(0), mPosY(0)
 {
 }
 
@@ -92,6 +92,19 @@ void GameObject::DrawChatLabel(
 
 	float font_size = textFormat->GetFontSize();
 	rt->DrawText(mChat.c_str(), (UINT32)mChat.size(), textFormat, { -w, -hh - font_size- offset_y, +w, -hh }, textColor);
+}
+
+void GameObject::DrawPositionLabel(ID2D1HwndRenderTarget* rt, IDWriteTextFormat* textFormat, ID2D1SolidColorBrush* textColor)
+{
+	SetTransform(rt);
+
+	D2D1_SIZE_F rtSize = rt->GetSize();
+	float left = -rtSize.width * 0.5f;
+	float top = -rtSize.height * 0.5f;
+
+	std::wstring label = L"( " + std::to_wstring(mPosX) + L", " + std::to_wstring(mPosY) + L" )";
+	rt->DrawText(label.c_str(), (UINT32)label.size(), textFormat, 
+		{ left, top, left + 100.0f, top + 50.0f }, textColor);
 }
 
 void GameObject::SetTransform(ID2D1HwndRenderTarget* rt)

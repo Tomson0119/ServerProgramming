@@ -14,11 +14,13 @@ public:
 	void SetCamera(D2D1_MATRIX_3X2_F* cameraMat) { mCameraMat = cameraMat; }
 
 	void SetID(const std::wstring& id) { mID = id; }
+	void SetWired(bool isWired) { mIsWired = isWired; }
+	void SetCoord(short x, short y) { mPosX = x, mPosY = y; }
 	void SetChat(const std::wstring& chat);
 	void SetPosition(const D2D1_POINT_2F& pos);
-	void SetWired(bool isWired) { mIsWired = isWired; }
 
 	D2D1_POINT_2F GetPosition() const { return mPosition; }
+	std::pair<short, short> GetCoord() const { return { mPosX, mPosY }; }
 
 public:
 	void Move(float dx, float dy);
@@ -32,6 +34,10 @@ public:
 		ID2D1SolidColorBrush* textColor);
 	void DrawChatLabel(
 		ID2D1HwndRenderTarget* rt, 
+		IDWriteTextFormat* textFormat,
+		ID2D1SolidColorBrush* textColor);
+	void DrawPositionLabel(
+		ID2D1HwndRenderTarget* rt,
 		IDWriteTextFormat* textFormat,
 		ID2D1SolidColorBrush* textColor);
 
@@ -58,6 +64,7 @@ protected:
 	std::wstring mID;
 	std::wstring mChat;
 
+	short mPosX, mPosY;
 	bool mChatActive;
 
 	FLOAT mRotationDegree = 0.0f;
