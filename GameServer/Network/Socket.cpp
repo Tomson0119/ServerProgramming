@@ -21,10 +21,10 @@ Socket::Socket(SOCKET sck)
 
 Socket::~Socket()
 {
-	Disconnect();
+	Close();
 }
 
-void Socket::Disconnect()
+void Socket::Close()
 {
 	if (mSocket)
 		closesocket(mSocket);

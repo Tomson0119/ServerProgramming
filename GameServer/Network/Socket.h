@@ -14,7 +14,7 @@ public:
 	Socket(SOCKET sck);
 	virtual ~Socket();
 
-	void Disconnect();
+	void Close();
 
 	void Init();
 	void Bind(const EndPoint& ep);
