@@ -43,7 +43,7 @@ public:
 
 public:
 	int ID;
-	PlayerInfo Info;
+	short PosX, PosY;
 	char Name[MAX_NAME_SIZE];	
 
 	ClientType Type;

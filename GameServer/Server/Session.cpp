@@ -4,9 +4,11 @@
 
 
 Session::Session()
-	: ID(-1), Info{ 0,0 },
+	: ID(-1), PosX(0), PosY(0),
 	  mRecvOverlapped{}, mState(State::FREE),
-	  Type(ClientType::PLAYER), Active(false), LastMoveTime(0)
+	  Type(ClientType::PLAYER), 
+	  Active(false), LastMoveTime(0),
+	  Name{}, Lua{}
 {
 }
 
@@ -20,7 +22,7 @@ void Session::Disconnect()
 	mStateLock.lock();
 	mState = State::FREE;
 	mStateLock.unlock();
-	Socket::Disconnect();
+	Socket::Close();
 }
 
 void Session::AssignAcceptedID(int id, SOCKET sck)
@@ -96,7 +98,7 @@ void Session::RecvMsg()
 
 bool Session::IsSame(PlayerInfo& coord)
 {
-	return (Info.x == coord.x && Info.y == coord.y);
+	return (PosX == coord.x && PosY == coord.y);
 }
 
 bool Session::IsStateWithoutLock(State state)
