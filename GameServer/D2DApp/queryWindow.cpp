@@ -9,9 +9,9 @@ QueryWindow::~QueryWindow()
 {
 }
 
-bool QueryWindow::InitWindow()
+bool QueryWindow::InitWindow(const std::wstring& classname)
 {
-	if (!Window::Init({ 600,200 }, L"QueryWindow", L"SubWindow"))
+	if (!Window::Init({ 600,200 }, L"QueryWindow", classname.c_str()))
 		return false;
 	return true;
 }
@@ -34,7 +34,6 @@ void QueryWindow::Run()
 
 LRESULT QueryWindow::OnProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
-	std::wstring text = L"Server IP Address";
 	PAINTSTRUCT ps{};
 	HDC hdc{};
 	HFONT font{}, oldfont{};
@@ -51,18 +50,18 @@ LRESULT QueryWindow::OnProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam)
 		hdc = BeginPaint(mHwnd, &ps);
 		font = CreateFont(30, 0, 0, 0, FW_BOLD, 0, 0, 0, ANSI_CHARSET, 0, 0, 0, 0, NULL);
 		oldfont = (HFONT)SelectObject(hdc, font);
-		TextOut(hdc, mWidth/2 - 100, mHeight/3, text.c_str(), (int)text.size());
+		TextOut(hdc, mWidth/2 - 100, mHeight/3, mLabel.c_str(), (int)mLabel.size());
 		EndPaint(mHwnd, &ps);
 		break;
 
 	case WM_COMMAND:
 		if (LOWORD(wParam) == 1)
 		{
-			mServerIPAddress.resize(GetWindowTextLength(mTextBox) + 1);
-			int len = GetWindowTextA(mTextBox, (LPSTR)mServerIPAddress.c_str(), (int)mServerIPAddress.size());
+			mAnswer.resize(GetWindowTextLength(mTextBox) + 1);
+			int len = GetWindowTextA(mTextBox, (LPSTR)mAnswer.c_str(), (int)mAnswer.size());
 			if (len != 0)
 			{
-				PostMessage(mHwnd, WM_CLOSE, 0, 0);
+				PostMessage(mHwnd, WM_CLOSE, NULL, NULL);
 			}
 		}
 		break;

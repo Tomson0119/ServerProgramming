@@ -8,10 +8,11 @@ public:
 	QueryWindow();
 	virtual ~QueryWindow();
 
-	bool InitWindow();
+	bool InitWindow(const std::wstring& classname);
 	void Run();
 
-	std::string GetServerIPAddress() const { return mServerIPAddress; }
+	void SetLabel(const std::wstring& label) { mLabel = label; }
+	std::string GetAnswer() const { return mAnswer; }
 
 public:
 	virtual PCWSTR ClassName() const { return L"Query Window"; }
@@ -25,5 +26,6 @@ private:
 
 	HWND mTextBox{};
 
-	std::string mServerIPAddress = "";
+	std::wstring mLabel;
+	std::string mAnswer = "";
 };
