@@ -37,17 +37,27 @@ bool D2DApp::InitNetwork()
 {
 	bool success = false;
 
-#ifdef QUERY_SERVER_IP
-	if(!mQueryWindow->InitWindow()) return false;
+#ifndef LOCAL_ADDRESS
+	if(!mQueryWindow->InitWindow(L"IPQueryWindow")) return false;
+	mQueryWindow->SetLabel(L"Server IP Address");
 	mQueryWindow->Run();
 
-	mServerIPAddress = mQueryWindow->GetServerIPAddress();
+	mServerIPAddress = mQueryWindow->GetAnswer();
 	success = (mNetwork->Connect(EndPoint(mServerIPAddress, SERVER_PORT)));
 #else
 	success = (mNetwork->Connect(EndPoint(SERVER_IP, SERVER_PORT)));
 #endif
+	if (success == false) return success;
 
-	if (success) mNetwork->Start(mGraphics.get());
+	std::string user_name = "None";
+#ifdef LOGIN_WITH_ID
+	if (!mQueryWindow->InitWindow(L"IDQueryWindow")) return false;
+	mQueryWindow->SetLabel(L"Enter user name");
+	mQueryWindow->Run();
+
+	user_name = mQueryWindow->GetAnswer();
+#endif
+	if (success) mNetwork->Start(mGraphics.get(), user_name.c_str());
 	return success;
 }
 
