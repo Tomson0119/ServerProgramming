@@ -18,14 +18,13 @@ const int  SECTOR_HEIGHT = WORLD_HEIGHT / SECTOR_HEIGHT_COUNT;
 const int  MAX_NAME_SIZE = 20;
 const int  MAX_CHAT_SIZE = 100;
 const int  MAX_USER = 10000;
-const int  MAX_NPC = 20000;
+const int  MAX_NPC = 60000;
 
 constexpr int NPC_ID_START = MAX_USER;
 constexpr int NPC_ID_END = MAX_USER + MAX_NPC - 1;
 
 const char CS_PACKET_LOGIN = 1;
 const char CS_PACKET_MOVE = 2;
-const char CS_PACKET_QUIT = 3;
 
 const char SC_PACKET_LOGIN_OK = 1;
 const char SC_PACKET_MOVE = 2;
@@ -33,11 +32,14 @@ const char SC_PACKET_PUT_OBJECT = 3;
 const char SC_PACKET_REMOVE_OBJECT = 4;
 const char SC_PACKET_CHAT = 5;
 
+#define LOGIN_WITH_ID
+
 #pragma pack (push, 1)
 struct cs_packet_login 
 {
 	unsigned char size;
 	char	      type;
+	char		  name[MAX_NAME_SIZE];
 };
 
 struct cs_packet_move 
@@ -48,16 +50,11 @@ struct cs_packet_move
 	int			  move_time;
 };
 
-struct cs_packet_quit
-{
-	unsigned char size;
-	char          type;
-};
-
 struct sc_packet_login_ok 
 {
 	unsigned char size;
 	char		  type;
+	bool		  success;
 	int			  id;
 	short		  x, y;
 	char		  name[MAX_NAME_SIZE];
