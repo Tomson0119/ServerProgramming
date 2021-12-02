@@ -10,8 +10,6 @@ IOCPServer::IOCPServer(const EndPoint& ep)
 {
 	if (mDBHandler.ConnectToDB(L"sql_server") == false)
 		std::cout << "failed to connect to DB\n";
-	if (mDBHandler.FindPlayerID("list234"))
-		std::cout << "Found player\n";
 
 	for (int i = 0; i < gClients.size(); i++) {
 		gClients[i] = std::make_shared<Session>();
@@ -30,13 +28,13 @@ void IOCPServer::InitNPC()
 {
 	for (int i = NPC_ID_START; i <= NPC_ID_END; i++)
 	{
-		gClients[i]->Info.x = rand() % WORLD_WIDTH;
-		gClients[i]->Info.y = rand() % WORLD_HEIGHT;
+		gClients[i]->PosX = rand() % WORLD_WIDTH;
+		gClients[i]->PosY = rand() % WORLD_HEIGHT;
 		sprintf_s(gClients[i]->Name, "N%d", i-NPC_ID_START+1);
 		gClients[i]->Type = ClientType::NPC;
 		gClients[i]->InitState(State::SLEEP);
 
-		lua_State* ls = luaL_newstate();
+		/*lua_State* ls = luaL_newstate();
 		gClients[i]->Lua = ls;
 		luaL_openlibs(ls);
 		luaL_loadfile(ls, "Script\\npc.lua");
@@ -50,7 +48,7 @@ void IOCPServer::InitNPC()
 		lua_register(ls, "API_AddTimer", API_AddTimer);
 		lua_register(ls, "API_SendMessage", API_SendMessage);
 		lua_register(ls, "API_get_x", API_get_x);
-		lua_register(ls, "API_get_y", API_get_y);
+		lua_register(ls, "API_get_y", API_get_y);*/
 	}
 	std::cout << "Done Initializing NPC\n";
 }
@@ -141,16 +139,16 @@ void IOCPServer::HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, 
 
 	case OP::NPC_MOVE:
 	{
-		MoveNPC(id, over->Random_direction);
+		/*MoveNPC(id, over->Random_direction);
 		lua_State* ls = gClients[id]->Lua;
 		lua_getglobal(ls, "event_npc_move");
 		lua_pushnumber(ls, over->Target);
 		lua_pushnumber(ls, 3);
 		lua_pushnumber(ls, over->Random_direction);
 		lua_pushstring(ls, "Bye");
-		lua_pcall(ls, 4, 0, 0);		
+		lua_pcall(ls, 4, 0, 0);		*/
 
-		/*MoveNPC(id, over->Random_direction);
+		MoveNPC(id, over->Random_direction);
 		bool keep_alive = false;
 		for (int i=0;i<NPC_ID_START;i++)
 		{
@@ -164,18 +162,18 @@ void IOCPServer::HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, 
 			}
 		}
 		if (keep_alive) AddTimer(id, over->Target, EventType::NPC_MOVE, rand()%4, 1000);
-		else gClients[id]->InitState(State::SLEEP);*/
+		else gClients[id]->InitState(State::SLEEP);
 		delete over;
 		break;
 	}
 	case OP::PLAYER_MOVE:
 	{
-		lua_State* ls = gClients[id]->Lua;
+		/*lua_State* ls = gClients[id]->Lua;
 		lua_getglobal(ls, "event_player_move");
 		lua_pushnumber(ls, over->Target);
 		lua_pushnumber(ls, rand() % 4);
 		lua_pushstring(ls, "Hello");
-		lua_pcall(ls, 3, 0, 0);
+		lua_pcall(ls, 3, 0, 0);*/
 		delete over;
 		break;
 	}
@@ -196,7 +194,7 @@ void IOCPServer::MoveNPC(int id, int direction)
 		old_viewlist.insert(gClients[i]->ID);
 	}
 
-	MovePosition(gClients[id]->Info, direction);
+	MovePosition(gClients[id]->PosX, gClients[id]->PosY, direction);
 
 	for (int i = 0; i < NPC_ID_START; i++)
 	{
@@ -286,15 +284,13 @@ void IOCPServer::Disconnect(int id)
 		if (gClients[pid]->FindAndEraseViewID(id))
 			SendRemovePacket(pid, id);
 	}
+	mDBHandler.UpdatePlayerPosition(gClients[id]->Name, gClients[id]->PosX, gClients[id]->PosY);
 	gClients[id]->Disconnect();
 }
 
 void IOCPServer::AcceptNewClient(int id, SOCKET sck)
 {
 	gClients[id]->AssignAcceptedID(id, sck);
-	gClients[id]->Info.x = rand() % WORLD_WIDTH;
-	gClients[id]->Info.y = rand() % WORLD_HEIGHT;
-	sprintf_s(gClients[id]->Name, "PLAYER%d", id);
 	mIOCP.RegisterDevice(sck, id);
 	gClients[id]->RecvMsg();
 }
@@ -329,7 +325,7 @@ void IOCPServer::ProcessPackets(int id, RingBuffer& msgQueue)
 		{
 			cs_packet_move packet_move{};
 			msgQueue.Pop(reinterpret_cast<uchar*>(&packet_move), sizeof(cs_packet_move));
-			MovePosition(gClients[id]->Info, packet_move.direction);
+			MovePosition(gClients[id]->PosX, gClients[id]->PosY, packet_move.direction);
 			gClients[id]->LastMoveTime = packet_move.move_time;
 
 			std::unordered_set<int> nearlist;			
@@ -364,13 +360,25 @@ void IOCPServer::ProcessPackets(int id, RingBuffer& msgQueue)
 
 void IOCPServer::ProcessLoginPacket(cs_packet_login& pck, int myId)
 {
+	auto t = mDBHandler.FindPlayerInfo(pck.name);
+	if (get<0>(t) == false) {
+		strcpy_s(gClients[myId]->Name, "None");
+		SendLoginOkPacket(myId, false);
+		return;
+	}
+	else {
+		strcpy_s(gClients[myId]->Name, pck.name);
+		gClients[myId]->PosX = get<1>(t);
+		gClients[myId]->PosY = get<2>(t);
+	}
+
 	if (gClients[myId]->CompareAndChangeState(State::ACCEPT, State::INGAME) == false)
 	{
 		std::cout << "Client is not in accept state [" << myId << "]\n";
 		return;
 	}
 
-	SendLoginOkPacket(myId);
+	SendLoginOkPacket(myId, true);
 	SendNewPlayerInfoToNearPlayers(myId);
 	SendNearPlayersInfoToNewPlayer(myId);
 }
@@ -446,14 +454,15 @@ void IOCPServer::HandleDisappearedPlayers(
 	}
 }
 
-void IOCPServer::SendLoginOkPacket(int id)
+void IOCPServer::SendLoginOkPacket(int id, bool success)
 {
 	sc_packet_login_ok ok_packet{};
 	ok_packet.id = id;
 	ok_packet.size = sizeof(sc_packet_login_ok);
 	ok_packet.type = SC_PACKET_LOGIN_OK;
-	ok_packet.x = gClients[id]->Info.x;
-	ok_packet.y = gClients[id]->Info.y;
+	ok_packet.success = success;
+	ok_packet.x = gClients[id]->PosX;
+	ok_packet.y = gClients[id]->PosY;
 	strcpy_s(ok_packet.name, gClients[id]->Name);
 	gClients[id]->SendMsg(reinterpret_cast<char*>(&ok_packet), sizeof(ok_packet));
 }
@@ -464,10 +473,13 @@ void IOCPServer::SendPutObjectPacket(int sender, int target)
 	put_packet.id = target;
 	put_packet.size = sizeof(sc_packet_put_object);
 	put_packet.type = SC_PACKET_PUT_OBJECT;
-	put_packet.x = gClients[target]->Info.x;
-	put_packet.y = gClients[target]->Info.y;
+	put_packet.x = gClients[target]->PosX;
+	put_packet.y = gClients[target]->PosY;
 	strcpy_s(put_packet.name, gClients[target]->Name);
-	put_packet.object_type = 0;
+	if (IsNPC(target))
+		put_packet.object_type = 1;
+	else
+		put_packet.object_type = 0;
 	gClients[sender]->SendMsg(reinterpret_cast<char*>(&put_packet), sizeof(put_packet));
 }
 
@@ -477,8 +489,8 @@ void IOCPServer::SendMovePacket(int sender, int target)
 	move_packet.id = target;
 	move_packet.size = sizeof(sc_packet_move);
 	move_packet.type = SC_PACKET_MOVE;
-	move_packet.x = gClients[target]->Info.x;
-	move_packet.y = gClients[target]->Info.y;
+	move_packet.x = gClients[target]->PosX;
+	move_packet.y = gClients[target]->PosY;
 	move_packet.move_time = gClients[target]->LastMoveTime;
 	gClients[sender]->SendMsg(reinterpret_cast<char*>(&move_packet), sizeof(move_packet));
 }
@@ -509,19 +521,19 @@ bool IOCPServer::IsNPC(int id)
 
 bool IOCPServer::IsNear(int a_id, int b_id)
 {
-	if (abs(gClients[a_id]->Info.x - gClients[b_id]->Info.x) > RANGE) return false;
-	if (abs(gClients[a_id]->Info.y - gClients[b_id]->Info.y) > RANGE) return false;
+	if (abs(gClients[a_id]->PosX - gClients[b_id]->PosX) > RANGE) return false;
+	if (abs(gClients[a_id]->PosY - gClients[b_id]->PosY) > RANGE) return false;
 	return true;
 }
 
-void IOCPServer::MovePosition(PlayerInfo& pos, char direction)
+void IOCPServer::MovePosition(short& x, short& y, char direction)
 {
 	switch (direction)
 	{
-	case 0: if (pos.y > 0) pos.y--; break;
-	case 1: if (pos.y < WORLD_HEIGHT - 1) pos.y++; break;
-	case 2: if (pos.x > 0) pos.x--; break;
-	case 3: if (pos.x < WORLD_WIDTH - 1) pos.x++; break;
+	case 0: if (y > 0) y--; break;
+	case 1: if (y < WORLD_HEIGHT - 1) y++; break;
+	case 2: if (x > 0) x--; break;
+	case 3: if (x < WORLD_WIDTH - 1) x++; break;
 	}
 }
 
@@ -538,8 +550,8 @@ void IOCPServer::AddTimer(int obj_id, int player_id, EventType type, int directi
 
 void IOCPServer::ActivateNPC(int id)
 {
-	if (gClients[id]->CompareAndChangeState(State::SLEEP, State::INGAME));
-		//AddTimer(id, 0, EventType::NPC_MOVE, rand()%4, 1000);
+	if (gClients[id]->CompareAndChangeState(State::SLEEP, State::INGAME))
+		AddTimer(id, 0, EventType::NPC_MOVE, rand()%4, 1000);
 }
 
 void IOCPServer::ActivatePlayerMoveEvent(int target, int player)
@@ -598,7 +610,7 @@ int IOCPServer::API_get_x(lua_State* L)
 {
 	int user_id = (int)lua_tointeger(L, -1);
 	lua_pop(L, 2);
-	int x = gClients[user_id]->Info.x;
+	int x = gClients[user_id]->PosX;
 	lua_pushnumber(L, x);
 	return 1;
 }
@@ -607,7 +619,7 @@ int IOCPServer::API_get_y(lua_State* L)
 {
 	int user_id = (int)lua_tointeger(L, -1);
 	lua_pop(L, 2);
-	int y = gClients[user_id]->Info.y;
+	int y = gClients[user_id]->PosY;
 	lua_pushnumber(L, y);
 	return 1;
 }

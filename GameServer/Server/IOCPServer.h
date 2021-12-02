@@ -28,7 +28,7 @@ public:
 		const std::unordered_set<int>& sights,
 		const std::unordered_set<int>& viewlist, int myId);
 
-	void SendLoginOkPacket(int id);
+	void SendLoginOkPacket(int id, bool success);
 	void SendPutObjectPacket(int sender, int target);
 	void SendMovePacket(int sender, int target);
 	void SendRemovePacket(int sender, int target);
@@ -40,15 +40,15 @@ public:
 	void HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, int bytes);
 	void MoveNPC(int id, int direction);
 
-	void MovePosition(PlayerInfo&pos, char direction);
+	void MovePosition(short& x, short& y, char direction);
 	static void AddTimer(int obj_id, int player_id, EventType type, int direction, int duration);
 	void ActivateNPC(int id);
 	void ActivatePlayerMoveEvent(int target, int player);
 
 	void InsertIntoSectorWithLock(int id);
-	void EraseFromSectorWidthLock(int id);
-	
+	void EraseFromSectorWidthLock(int id);	
 	std::pair<short, short> GetSectorIndex(int id);
+
 	int GetAvailableID();
 
 	static int API_AddTimer(lua_State* ls);
