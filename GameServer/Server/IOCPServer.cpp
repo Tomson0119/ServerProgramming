@@ -2,7 +2,7 @@
 #include "IOCPServer.h"
 
 std::array<std::shared_ptr<Session>, MAX_USER + MAX_NPC> IOCPServer::gClients;
-//std::array<std::array<std::unordered_set<int>, SECTOR_WIDTH>, SECTOR_HEIGHT> IOCPServer::gSectors;
+std::array<std::array<std::unordered_set<int>, SECTOR_WIDTH>, SECTOR_HEIGHT> IOCPServer::gSectors;
 concurrency::concurrent_priority_queue<TimerEvent> IOCPServer::gTimerQueue;
 
 IOCPServer::IOCPServer(const EndPoint& ep)
@@ -28,27 +28,12 @@ void IOCPServer::InitNPC()
 {
 	for (int i = NPC_ID_START; i <= NPC_ID_END; i++)
 	{
-		gClients[i]->PosX = rand() % WORLD_WIDTH;
-		gClients[i]->PosY = rand() % WORLD_HEIGHT;
-		sprintf_s(gClients[i]->Name, "N%d", i-NPC_ID_START+1);
+		gClients[i]->Info.x = rand() % WORLD_WIDTH;
+		gClients[i]->Info.y = rand() % WORLD_HEIGHT;
+		sprintf_s(gClients[i]->Info.name, "N%d", i-NPC_ID_START+1);
 		gClients[i]->Type = ClientType::NPC;
 		gClients[i]->InitState(State::SLEEP);
-
-		/*lua_State* ls = luaL_newstate();
-		gClients[i]->Lua = ls;
-		luaL_openlibs(ls);
-		luaL_loadfile(ls, "Script\\npc.lua");
-		lua_pcall(ls, 0, 0, 0);
-
-		lua_getglobal(ls, "set_uid");
-		lua_pushnumber(ls, i);
-		lua_pcall(ls, 1, 0, 0);
-		lua_pop(ls, 1);
-
-		lua_register(ls, "API_AddTimer", API_AddTimer);
-		lua_register(ls, "API_SendMessage", API_SendMessage);
-		lua_register(ls, "API_get_x", API_get_x);
-		lua_register(ls, "API_get_y", API_get_y);*/
+		InsertIntoSectorWithoutLock(i);
 	}
 	std::cout << "Done Initializing NPC\n";
 }
@@ -129,8 +114,10 @@ void IOCPServer::HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, 
 		SOCKET clientSck = *reinterpret_cast<SOCKET*>(over->NetBuffer);
 
 		int new_id = GetAvailableID();
-		if (new_id == -1)
+		if (new_id == -1) {
 			std::cout << "Max number of clients overflow\n";
+			SendLoginFailPacket(new_id, 1);
+		}
 		else
 			AcceptNewClient(new_id, clientSck);
 		mListenSck.AsyncAccept(*over);
@@ -140,15 +127,6 @@ void IOCPServer::HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, 
 	case OP::NPC_MOVE:
 	{
 		/*MoveNPC(id, over->Random_direction);
-		lua_State* ls = gClients[id]->Lua;
-		lua_getglobal(ls, "event_npc_move");
-		lua_pushnumber(ls, over->Target);
-		lua_pushnumber(ls, 3);
-		lua_pushnumber(ls, over->Random_direction);
-		lua_pushstring(ls, "Bye");
-		lua_pcall(ls, 4, 0, 0);		*/
-
-		MoveNPC(id, over->Random_direction);
 		bool keep_alive = false;
 		for (int i=0;i<NPC_ID_START;i++)
 		{
@@ -162,18 +140,12 @@ void IOCPServer::HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, 
 			}
 		}
 		if (keep_alive) AddTimer(id, over->Target, EventType::NPC_MOVE, rand()%4, 1000);
-		else gClients[id]->InitState(State::SLEEP);
+		else gClients[id]->InitState(State::SLEEP);*/
 		delete over;
 		break;
 	}
 	case OP::PLAYER_MOVE:
 	{
-		/*lua_State* ls = gClients[id]->Lua;
-		lua_getglobal(ls, "event_player_move");
-		lua_pushnumber(ls, over->Target);
-		lua_pushnumber(ls, rand() % 4);
-		lua_pushstring(ls, "Hello");
-		lua_pcall(ls, 3, 0, 0);*/
 		delete over;
 		break;
 	}
@@ -194,7 +166,7 @@ void IOCPServer::MoveNPC(int id, int direction)
 		old_viewlist.insert(gClients[i]->ID);
 	}
 
-	MovePosition(gClients[id]->PosX, gClients[id]->PosY, direction);
+	MovePosition(gClients[id]->Info.x, gClients[id]->Info.y, direction);
 
 	for (int i = 0; i < NPC_ID_START; i++)
 	{
@@ -284,7 +256,7 @@ void IOCPServer::Disconnect(int id)
 		if (gClients[pid]->FindAndEraseViewID(id))
 			SendRemovePacket(pid, id);
 	}
-	mDBHandler.UpdatePlayerPosition(gClients[id]->Name, gClients[id]->PosX, gClients[id]->PosY);
+	mDBHandler.DisconnectAndUpdate(gClients[id]->Info);
 	gClients[id]->Disconnect();
 }
 
@@ -325,23 +297,37 @@ void IOCPServer::ProcessPackets(int id, RingBuffer& msgQueue)
 		{
 			cs_packet_move packet_move{};
 			msgQueue.Pop(reinterpret_cast<uchar*>(&packet_move), sizeof(cs_packet_move));
-			MovePosition(gClients[id]->PosX, gClients[id]->PosY, packet_move.direction);
+			
+			auto beforeSecIdx = GetSectorIndex(id);
+			MovePosition(gClients[id]->Info.x, gClients[id]->Info.y, packet_move.direction);
+			auto afterSecIdx = GetSectorIndex(id);
+
+			if (beforeSecIdx != afterSecIdx)
+			{
+				mSectorLock.lock();
+				gSectors[beforeSecIdx.first][beforeSecIdx.second].erase(id);
+				gSectors[afterSecIdx.first][afterSecIdx.second].insert(id);
+				mSectorLock.unlock();
+				std::cout << "Sector changed\n";
+			}
+
 			gClients[id]->LastMoveTime = packet_move.move_time;
 
-			std::unordered_set<int> nearlist;			
-			for (auto& other : gClients)
+			std::unordered_set<int> nearlist;
+			auto sector = GetSector(id);
+			for (int cid : sector)
 			{
-				if (other->ID == id || IsNear(other->ID, id) == false)
+				if (cid == id || IsNear(cid, id) == false)
 					continue;
-				if (other->IsStateWithoutLock(State::SLEEP))
-					ActivateNPC(other->ID);
-				if (!other->IsStateWithoutLock(State::INGAME))
+				if (gClients[cid]->IsStateWithoutLock(State::SLEEP))
+					ActivateNPC(cid);
+				if (!gClients[cid]->IsStateWithoutLock(State::INGAME))
 					continue;
-				if (IsNPC(other->ID))
-					ActivatePlayerMoveEvent(other->ID, id);
-				nearlist.insert(other->ID);
+				if (IsNPC(cid))
+					ActivatePlayerMoveEvent(cid, id);
+				nearlist.insert(cid);
 			}
-			SendMovePacket(id, id);
+			SendMovePacket(id, id);			
 
 			gClients[id]->ViewListLock.lock();
 			std::unordered_set<int> viewlist = gClients[id]->GetViewList();
@@ -349,6 +335,24 @@ void IOCPServer::ProcessPackets(int id, RingBuffer& msgQueue)
 
 			HandlePlayersInSight(nearlist, viewlist, id);
 			HandleDisappearedPlayers(nearlist, viewlist, id);
+			break;
+		}
+		case CS_PACKET_CHAT:
+		{
+			cs_packet_chat chat_packet{};
+			msgQueue.Pop(reinterpret_cast<uchar*>(&chat_packet), sizeof(cs_packet_chat));
+
+			gClients[id]->ViewListLock.lock();
+			auto viewlist = gClients[id]->GetViewList();
+			gClients[id]->ViewListLock.unlock();
+
+			SendChatPacket(id, id, chat_packet.message);
+			for (int pid : viewlist)
+			{
+				if (IsNPC(pid) == true) continue;
+				SendChatPacket(pid, id, chat_packet.message);
+			}
+
 			break;
 		}
 		default:
@@ -360,16 +364,15 @@ void IOCPServer::ProcessPackets(int id, RingBuffer& msgQueue)
 
 void IOCPServer::ProcessLoginPacket(cs_packet_login& pck, int myId)
 {
-	auto t = mDBHandler.FindPlayerInfo(pck.name);
-	if (get<0>(t) == false) {
-		strcpy_s(gClients[myId]->Name, "None");
-		SendLoginOkPacket(myId, false);
+	auto p = mDBHandler.ConnectWithID(pck.name);
+	if (p.first != 1) {
+		SendLoginFailPacket(myId, p.first);
+		gClients[myId]->Disconnect();
 		return;
 	}
 	else {
-		strcpy_s(gClients[myId]->Name, pck.name);
-		gClients[myId]->PosX = get<1>(t);
-		gClients[myId]->PosY = get<2>(t);
+		gClients[myId]->Info = p.second;
+		InsertIntoSectorWithLock(myId);
 	}
 
 	if (gClients[myId]->CompareAndChangeState(State::ACCEPT, State::INGAME) == false)
@@ -378,38 +381,40 @@ void IOCPServer::ProcessLoginPacket(cs_packet_login& pck, int myId)
 		return;
 	}
 
-	SendLoginOkPacket(myId, true);
+	SendLoginOkPacket(myId);
 	SendNewPlayerInfoToNearPlayers(myId);
 	SendNearPlayersInfoToNewPlayer(myId);
 }
 
 void IOCPServer::SendNewPlayerInfoToNearPlayers(int target)
 {
-	for (auto& other : gClients)
+	auto sector = GetSector(target);
+	for (int cid : sector)
 	{
-		if (other->ID == target || !IsNear(other->ID, target))
+		if (cid == target || !IsNear(cid, target))
 			continue;
-		if (other->IsStateWithoutLock(State::SLEEP))
-			ActivateNPC(other->ID);
-		if (IsNPC(other->ID) || !other->IsStateWithoutLock(State::INGAME))
+		if (gClients[cid]->IsStateWithoutLock(State::SLEEP))
+			ActivateNPC(cid);
+		if (IsNPC(cid) || !gClients[cid]->IsStateWithoutLock(State::INGAME))
 			continue;
 
-		other->InsertViewID(target);
-		SendPutObjectPacket(other->ID, target);
+		gClients[cid]->InsertViewID(target);
+		SendPutObjectPacket(cid, target);
 	}
 }
 
 void IOCPServer::SendNearPlayersInfoToNewPlayer(int sender)
 {
-	for (auto& client : gClients)
+	auto sector = GetSector(sender);
+	for (int cid : sector)
 	{
-		if (client->ID == sender || !IsNear(client->ID, sender))
+		if (cid == sender || !IsNear(cid, sender))
 			continue;
-		if (!client->IsStateWithoutLock(State::INGAME))
+		if (!gClients[cid]->IsStateWithoutLock(State::INGAME))
 			continue;
 
-		gClients[sender]->InsertViewID(client->ID);
-		SendPutObjectPacket(sender, client->ID);
+		gClients[sender]->InsertViewID(cid);
+		SendPutObjectPacket(sender, cid);
 	}
 }
 
@@ -454,17 +459,28 @@ void IOCPServer::HandleDisappearedPlayers(
 	}
 }
 
-void IOCPServer::SendLoginOkPacket(int id, bool success)
+void IOCPServer::SendLoginOkPacket(int id)
 {
 	sc_packet_login_ok ok_packet{};
 	ok_packet.id = id;
 	ok_packet.size = sizeof(sc_packet_login_ok);
 	ok_packet.type = SC_PACKET_LOGIN_OK;
-	ok_packet.success = success;
-	ok_packet.x = gClients[id]->PosX;
-	ok_packet.y = gClients[id]->PosY;
-	strcpy_s(ok_packet.name, gClients[id]->Name);
+	ok_packet.x = gClients[id]->Info.x;
+	ok_packet.y = gClients[id]->Info.y;
+	ok_packet.level = gClients[id]->Info.level;
+	ok_packet.hp = gClients[id]->Info.hp;
+	ok_packet.maxhp = gClients[id]->Info.max_hp;
+	ok_packet.exp = gClients[id]->Info.exp;
 	gClients[id]->SendMsg(reinterpret_cast<char*>(&ok_packet), sizeof(ok_packet));
+}
+
+void IOCPServer::SendLoginFailPacket(int id, char reason)
+{
+	sc_packet_login_fail fail_packet{};
+	fail_packet.size = sizeof(sc_packet_login_fail);
+	fail_packet.type = SC_PACKET_LOGIN_FAIL;
+	fail_packet.reason = reason;
+	gClients[id]->SendMsg(reinterpret_cast<char*>(&fail_packet), sizeof(fail_packet));
 }
 
 void IOCPServer::SendPutObjectPacket(int sender, int target)
@@ -473,9 +489,9 @@ void IOCPServer::SendPutObjectPacket(int sender, int target)
 	put_packet.id = target;
 	put_packet.size = sizeof(sc_packet_put_object);
 	put_packet.type = SC_PACKET_PUT_OBJECT;
-	put_packet.x = gClients[target]->PosX;
-	put_packet.y = gClients[target]->PosY;
-	strcpy_s(put_packet.name, gClients[target]->Name);
+	put_packet.x = gClients[target]->Info.x;
+	put_packet.y = gClients[target]->Info.y;
+	strcpy_s(put_packet.name, gClients[target]->Info.name);
 	if (IsNPC(target))
 		put_packet.object_type = 1;
 	else
@@ -489,8 +505,8 @@ void IOCPServer::SendMovePacket(int sender, int target)
 	move_packet.id = target;
 	move_packet.size = sizeof(sc_packet_move);
 	move_packet.type = SC_PACKET_MOVE;
-	move_packet.x = gClients[target]->PosX;
-	move_packet.y = gClients[target]->PosY;
+	move_packet.x = gClients[target]->Info.x;
+	move_packet.y = gClients[target]->Info.y;
 	move_packet.move_time = gClients[target]->LastMoveTime;
 	gClients[sender]->SendMsg(reinterpret_cast<char*>(&move_packet), sizeof(move_packet));
 }
@@ -521,8 +537,8 @@ bool IOCPServer::IsNPC(int id)
 
 bool IOCPServer::IsNear(int a_id, int b_id)
 {
-	if (abs(gClients[a_id]->PosX - gClients[b_id]->PosX) > RANGE) return false;
-	if (abs(gClients[a_id]->PosY - gClients[b_id]->PosY) > RANGE) return false;
+	if (abs(gClients[a_id]->Info.x - gClients[b_id]->Info.x) > RANGE) return false;
+	if (abs(gClients[a_id]->Info.y - gClients[b_id]->Info.y) > RANGE) return false;
 	return true;
 }
 
@@ -561,30 +577,46 @@ void IOCPServer::ActivatePlayerMoveEvent(int target, int player)
 	mIOCP.PostToCompletionQueue(over_ex, target);
 }
 
-//std::pair<short, short> IOCPServer::GetSectorIndex(int id)
-//{
-//	short x = gClients[id]->Info.x;
-//	short y = gClients[id]->Info.y;
-//	return { x / SECTOR_WIDTH, y / SECTOR_HEIGHT };
-//}
-//
-//void IOCPServer::InsertIntoSectorWithLock(int id)
-//{
-//	/*auto sector = GetSectorIndex(id);
-//
-//	mSectorLock.lock();
-//	gSectors[sector.first][sector.second].insert(id);
-//	mSectorLock.unlock();*/
-//}
-//
-//void IOCPServer::EraseFromSectorWidthLock(int id)
-//{
-//	auto sector = GetSectorIndex(id);
-//
-//	/*mSectorLock.lock();
-//	gSectors[sector.first][sector.second].erase(id);
-//	mSectorLock.unlock();*/
-//}
+std::pair<short, short> IOCPServer::GetSectorIndex(int id)
+{
+	short x = gClients[id]->Info.x;
+	short y = gClients[id]->Info.y;
+	return { x / SECTOR_WIDTH, y / SECTOR_HEIGHT };
+}
+
+void IOCPServer::InsertIntoSectorWithoutLock(int id)
+{
+	auto secIdx = GetSectorIndex(id);
+	gSectors[secIdx.first][secIdx.second].insert(id);
+}
+
+void IOCPServer::InsertIntoSectorWithLock(int id)
+{
+	auto sector = GetSectorIndex(id);
+
+	mSectorLock.lock();
+	gSectors[sector.first][sector.second].insert(id);
+	mSectorLock.unlock();
+}
+
+void IOCPServer::EraseFromSectorWidthLock(int id)
+{
+	auto sector = GetSectorIndex(id);
+
+	mSectorLock.lock();
+	gSectors[sector.first][sector.second].erase(id);
+	mSectorLock.unlock();
+}
+
+std::unordered_set<int> IOCPServer::GetSector(int id)
+{
+	auto idx = GetSectorIndex(id);
+
+	mSectorLock.lock();
+	auto sector = gSectors[idx.first][idx.second];
+	mSectorLock.unlock();
+	return sector;
+}
 
 int IOCPServer::API_AddTimer(lua_State* ls)
 {
@@ -610,7 +642,7 @@ int IOCPServer::API_get_x(lua_State* L)
 {
 	int user_id = (int)lua_tointeger(L, -1);
 	lua_pop(L, 2);
-	int x = gClients[user_id]->PosX;
+	int x = gClients[user_id]->Info.x;
 	lua_pushnumber(L, x);
 	return 1;
 }
@@ -619,7 +651,7 @@ int IOCPServer::API_get_y(lua_State* L)
 {
 	int user_id = (int)lua_tointeger(L, -1);
 	lua_pop(L, 2);
-	int y = gClients[user_id]->PosY;
+	int y = gClients[user_id]->Info.y;
 	lua_pushnumber(L, y);
 	return 1;
 }

@@ -28,7 +28,8 @@ public:
 		const std::unordered_set<int>& sights,
 		const std::unordered_set<int>& viewlist, int myId);
 
-	void SendLoginOkPacket(int id, bool success);
+	void SendLoginOkPacket(int id);
+	void SendLoginFailPacket(int id, char reason);
 	void SendPutObjectPacket(int sender, int target);
 	void SendMovePacket(int sender, int target);
 	void SendRemovePacket(int sender, int target);
@@ -45,8 +46,10 @@ public:
 	void ActivateNPC(int id);
 	void ActivatePlayerMoveEvent(int target, int player);
 
+	void InsertIntoSectorWithoutLock(int id);
 	void InsertIntoSectorWithLock(int id);
-	void EraseFromSectorWidthLock(int id);	
+	void EraseFromSectorWidthLock(int id);
+	std::unordered_set<int> GetSector(int id);
 	std::pair<short, short> GetSectorIndex(int id);
 
 	int GetAvailableID();
@@ -66,7 +69,7 @@ private:
 	IOCP mIOCP;
 
 	static std::array<std::shared_ptr<Session>, MAX_USER + MAX_NPC> gClients;
-	//static std::array<std::array<std::unordered_set<int>, SECTOR_WIDTH>, SECTOR_HEIGHT> gSectors;
+	static std::array<std::array<std::unordered_set<int>, SECTOR_WIDTH>, SECTOR_HEIGHT> gSectors;
 	static concurrency::concurrent_priority_queue<TimerEvent> gTimerQueue;
 
 	std::mutex mSectorLock;
