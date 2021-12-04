@@ -1,5 +1,7 @@
 #pragma once
 
+#include "stdafx.h"
+
 #include <Windows.h>
 #include <sqlext.h>
 #include <string>
@@ -11,8 +13,8 @@ public:
 	~DBHandler();
 
 	bool ConnectToDB(const std::wstring& sourcename);
-	std::tuple<bool, short, short> FindPlayerInfo(const std::string& player_id);
-	bool UpdatePlayerPosition(const std::string& player_id, short x, short y);
+	std::pair<int, PlayerInfo> ConnectWithID(const std::string& player_id);
+	bool DisconnectAndUpdate(PlayerInfo& info);
 
 private:
 	bool PrintIfError(SQLHANDLE handle, SQLSMALLINT type, RETCODE retCode);

@@ -37,35 +37,62 @@ bool DBHandler::ConnectToDB(const std::wstring& sourcename)
 	return true;
 }
 
-std::tuple<bool, short, short> DBHandler::FindPlayerInfo(const std::string& player_id)
+std::pair<int, PlayerInfo> DBHandler::ConnectWithID(const std::string& player_id)
 {
-	std::wstring query = L"EXEC find_player_info ";
+	std::wstring query = L"EXEC connect_with_id ";
 	query.insert(query.end(), player_id.begin(), player_id.end());
 
 	RETCODE ret = SQLExecDirect(m_hStmt, (SQLWCHAR*)query.c_str() , SQL_NTS);
-	if (PrintIfError(m_hStmt, SQL_HANDLE_STMT, ret)) return { false, -10, -10 };
+	if (PrintIfError(m_hStmt, SQL_HANDLE_STMT, ret)) return { -1, {} };
 
+	SQLSMALLINT retLevel = 0, retHP = 0, retMAXHP = 0;
 	SQLSMALLINT retX = 0, retY = 0;
-	SQLLEN cbX = 0, cbY = 0;
-	SQLBindCol(m_hStmt, 1, SQL_C_SHORT, &retX, 2, &cbX);
-	SQLBindCol(m_hStmt, 2, SQL_C_SHORT, &retY, 2, &cbY);
+	SQLINTEGER retEXP = 0;
+	SQLCHAR retConnected = 0;
+	SQLLEN cb[7]{};
+
+	SQLBindCol(m_hStmt, 1, SQL_C_SHORT, &retLevel, 2, &cb[0]);
+	SQLBindCol(m_hStmt, 2, SQL_C_SHORT, &retX, 2, &cb[1]);
+	SQLBindCol(m_hStmt, 3, SQL_C_SHORT, &retY, 2, &cb[2]);
+	SQLBindCol(m_hStmt, 4, SQL_C_SHORT, &retHP, 2, &cb[3]);
+	SQLBindCol(m_hStmt, 5, SQL_C_SHORT, &retMAXHP, 2, &cb[4]);
+	SQLBindCol(m_hStmt, 6, SQL_C_LONG, &retEXP, 4, &cb[5]);
+	SQLBindCol(m_hStmt, 7, SQL_C_BIT, &retConnected, 1, &cb[6]);
 	
 	ret = SQLFetch(m_hStmt);
 	if (PrintIfError(m_hStmt, SQL_HANDLE_STMT, ret)) {
 		SQLCloseCursor(m_hStmt);
-		return { false, -10, -10 };
+		return { -1, {} };
 	}
 
 	SQLCancel(m_hStmt);
 	SQLCloseCursor(m_hStmt);
-	return { true, retX, retY };
+
+	if (retConnected == true) {
+		return { 0, {} };
+	}
+
+	PlayerInfo info{};
+	strncpy_s(info.name, player_id.c_str(), player_id.size());
+	info.level = (short)retLevel;
+	info.x = (short)retX;
+	info.y = (short)retY;
+	info.hp = (short)retHP;
+	info.max_hp = (short)retMAXHP;
+	info.exp = (int)retEXP;
+	return { 1, info };
 }
 
-bool DBHandler::UpdatePlayerPosition(const std::string& player_id, short x, short y)
+bool DBHandler::DisconnectAndUpdate(PlayerInfo& info)
 {
-	std::wstring query = L"EXEC update_player_position ";
-	query.insert(query.end(), player_id.begin(), player_id.end());
-	query += L", " + std::to_wstring(x) + L", " + std::to_wstring(y);
+	std::wstring query = L"EXEC disconnect ";
+	query.insert(query.end(), std::begin(info.name), std::begin(info.name) + strlen(info.name));
+	query += L", " + std::to_wstring(info.level)
+		+ L", " + std::to_wstring(info.x)
+		+ L", " + std::to_wstring(info.y)
+		+ L", " + std::to_wstring(info.hp)
+		+ L", " + std::to_wstring(info.max_hp)
+		+ L", " + std::to_wstring(info.exp);
 
 	RETCODE ret = SQLExecDirect(m_hStmt, (SQLWCHAR*)query.c_str(), SQL_NTS);
 	if (PrintIfError(m_hStmt, SQL_HANDLE_STMT, ret)) return false;
