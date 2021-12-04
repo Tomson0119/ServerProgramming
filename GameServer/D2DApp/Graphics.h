@@ -12,7 +12,6 @@ public:
 	bool Init(const HWND& hwnd);
 
 	void Draw();
-	void DrawPositionText();
 
 	void Update(const float elapsed);
 	void Resize(const HWND& hwnd);
@@ -20,11 +19,13 @@ public:
 	void BuildMap();
 	void BuildImages();
 
-	void InitializePlayer(int id, char* name, short x, short y);
-	void CreateNewObject(int id, char obj_type, char* name, short x, short y);
+	void InitializePlayer(sc_packet_login_ok& player_info, const char* name);
+	void CreateNewObject(int id, char obj_type, const char* name, short x, short y);
 	void UpdatePlayerPosition(int id, short x, short y);
 	void UpdatePlayerChat(int id, char* msg);
 	void EraseObject(int id);
+
+	void Quit();
 
 private:
 	bool CreateD2D1Resources(const HWND& hwnd);
@@ -41,17 +42,20 @@ private:
 
 	ComPtr<IDWriteFactory> mWriteFactory;
 	ComPtr<IDWriteTextFormat> mTextFormat;
-	ComPtr<ID2D1SolidColorBrush> mIDLabelColorBrush;
-	ComPtr<ID2D1SolidColorBrush> mChatLabelColorBrush;
+	ComPtr<ID2D1SolidColorBrush> mLabelColorBrush;
 
 	std::vector<std::unique_ptr<BitmapLoader>> mBitmaps;
 
-	GameObject* mPlayer;
 	D2D1_POINT_2F mPlayerOffset;
 
 	D2D1_MATRIX_3X2_F mCameraMatrix;
 	D2D1_POINT_2F mCameraPosition;
 
+	int mPlayerID;
 	std::unordered_map<int, std::unique_ptr<GameObject>> mMovingObjects;
 	std::vector<std::unique_ptr<GameObject>> mStaticObjects;
+
+	float mChatShowedTime;
+
+	HWND mAppHwnd;
 };

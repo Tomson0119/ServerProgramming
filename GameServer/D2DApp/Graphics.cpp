@@ -10,7 +10,8 @@ using namespace std;
 GraphicScene::GraphicScene()
 	: mCameraMatrix(D2D1::Matrix3x2F::Identity()),
 	  mCameraPosition(D2D1::Point2F(0.0f, 0.0f)),
-	  mPlayer(nullptr), mPlayerOffset(D2D1::Point2F(0.0f, 0.0f))
+	  mPlayerOffset(D2D1::Point2F(0.0f, 0.0f)),
+	  mPlayerID(0), mChatShowedTime(0.0f)
 {
 }
 
@@ -20,6 +21,8 @@ GraphicScene::~GraphicScene()
 
 bool GraphicScene::Init(const HWND& hwnd)
 {
+	mAppHwnd = hwnd;
+
 	if (!CreateD2D1Resources(hwnd))
 		return false;
 
@@ -52,9 +55,7 @@ bool GraphicScene::CreateD2D1Resources(const HWND& hwnd)
 	ThrowIfFailed(mRenderTarget->CreateLayer(mLayer.GetAddressOf()));
 
 	ThrowIfFailed(mRenderTarget->CreateSolidColorBrush(
-		D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f), mIDLabelColorBrush.GetAddressOf()));
-	ThrowIfFailed(mRenderTarget->CreateSolidColorBrush(
-		D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f), mChatLabelColorBrush.GetAddressOf()));
+		D2D1::ColorF(0.0f, 0.0f, 0.0f, 1.0f), mLabelColorBrush.GetAddressOf()));
 	return true;
 }
 
@@ -80,10 +81,8 @@ bool GraphicScene::CreateDirectWriteResources()
 }
 	
 void GraphicScene::BuildMap()
-{	
-	OutputDebugString(L"Build Map\n");
-
-	float rect_size = 2880.0f;
+{
+	float rect_size = 2368.0f;
 	float h_size = rect_size * 0.5f;
 	mPlayerOffset = { h_size / 64, h_size / 64 };
 
@@ -108,13 +107,23 @@ void GraphicScene::BuildImages()
 		throw D2DException(L"Failed to Decode image\n");
 }
 
-void GraphicScene::InitializePlayer(int id, char* name, short x, short y)
+void GraphicScene::InitializePlayer(sc_packet_login_ok& player_info, const char* name)
 {
-	CreateNewObject(id, 0, name, x, y);
-	mPlayer = mMovingObjects[id].get();
+	auto player = std::make_unique<Player>(mRenderTarget.Get());
+	player->SetInfo(player_info.level, player_info.hp, player_info.maxhp, player_info.exp);
+	player->SetShape(std::make_unique<Circle>(16.0f));
+	player->SetColor(mRenderTarget.Get(), D2D1::ColorF(1.0f, 0.0f, 0.0f, 1.0f));
+	player->SetID(CharToWString(name));
+	player->SetCamera(&mCameraMatrix);
+	player->SetCoord(player_info.x, player_info.y);
+	player->SetPosition({
+		(float)player_info.x * mPlayerOffset.x * 2 + mPlayerOffset.x,
+		(float)player_info.y * mPlayerOffset.y * 2 + mPlayerOffset.y });
+	mMovingObjects[player_info.id] = std::move(player);
+	mPlayerID = player_info.id;
 }
 
-void GraphicScene::CreateNewObject(int id, char obj_type, char* name, short x, short y)
+void GraphicScene::CreateNewObject(int id, char obj_type, const char* name, short x, short y)
 {
 	mMovingObjects[id] = std::make_unique<GameObject>(mRenderTarget.Get());
 	mMovingObjects[id]->SetShape(std::make_unique<Circle>(16.0f));
@@ -178,6 +187,11 @@ void GraphicScene::EraseObject(int id)
 	mMovingObjects.erase(id);
 }
 
+void GraphicScene::Quit()
+{
+	PostMessage(mAppHwnd, WM_CLOSE, NULL, NULL);
+}
+
 void GraphicScene::Resize(const HWND& hwnd)
 {
 	RECT rect{};
@@ -195,13 +209,12 @@ void GraphicScene::Draw()
 	mRenderTarget->Clear(ColorF(ColorF::White));
 
 	for (const auto& staticObj : mStaticObjects)
-		staticObj->Draw(mRenderTarget.Get(), mTextFormat.Get());
-	for (const auto& [_, movingObj] : mMovingObjects) {
-		movingObj->Draw(mRenderTarget.Get(), mTextFormat.Get());
-		movingObj->DrawIDLabel(mRenderTarget.Get(), mTextFormat.Get(), mIDLabelColorBrush.Get());
-		movingObj->DrawChatLabel(mRenderTarget.Get(), mTextFormat.Get(), mChatLabelColorBrush.Get());
-	}
-	if (mPlayer) mPlayer->DrawPositionLabel(mRenderTarget.Get(), mTextFormat.Get(), mIDLabelColorBrush.Get());
+		if(staticObj)
+			staticObj->Draw(mRenderTarget.Get(), mTextFormat.Get(), mLabelColorBrush.Get());
+	for (const auto& [_, movingObj] : mMovingObjects)
+		if(movingObj)
+			movingObj->Draw(mRenderTarget.Get(), mTextFormat.Get(), mLabelColorBrush.Get());
+
 	mRenderTarget->EndDraw();
 }
 
@@ -209,8 +222,9 @@ void GraphicScene::Update(const float elapsed)
 {
 	OnProcessKeyInput(elapsed);
 
-	if (mPlayer == nullptr) return;
-	D2D1_POINT_2F player_pos = mPlayer->GetPosition();
+	if (mMovingObjects[mPlayerID] == nullptr) return;
+
+	D2D1_POINT_2F player_pos = mMovingObjects[mPlayerID]->GetPosition();
 	D2D1_SIZE_F rt_size = mRenderTarget->GetSize();
 
 	float player_pos_x = player_pos.x - rt_size.width * 0.5f;
