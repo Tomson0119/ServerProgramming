@@ -4,6 +4,8 @@
 #include "Timer.h"
 #include "queryWindow.h"
 #include "NetClient.h"
+#include "ChatWindow.h"
+#include "LogWindow.h"
 
 using namespace std;
 
@@ -14,6 +16,8 @@ D2DApp::D2DApp()
 	mTimer = make_unique<Timer>();
 	mNetwork = make_unique<NetClient>();
 	mQueryWindow = make_unique<QueryWindow>();
+	mChatWindow = make_unique<ChatWindow>();
+	mLogWindow = make_unique<LogWindow>();
 }
 
 D2DApp::~D2DApp()
@@ -24,12 +28,11 @@ D2DApp::~D2DApp()
 bool D2DApp::Init()
 {
 	if (FAILED(CoInitializeEx(NULL, COINIT_MULTITHREADED))) return false;
-	if (!Window::Init({ 780, 800 }, L"D2DApp", L"MainWindow")) return false;
+	if (!Window::Init({ 790, 810 }, L"D2DApp", L"MainWindow")) return false;	
+	if (!mChatWindow->InitWindow(L"ChatWindow")) return false;
+	if (!mLogWindow->InitWindow(L"LogWindow")) return false;
 	if (!mGraphics->Init(mHwnd)) return false;
-
-#ifndef STANDARD_ALONE
 	if (!InitNetwork()) return false;
-#endif
 	return true;
 }
 
@@ -45,25 +48,44 @@ bool D2DApp::InitNetwork()
 	mServerIPAddress = mQueryWindow->GetAnswer();
 	success = (mNetwork->Connect(EndPoint(mServerIPAddress, SERVER_PORT)));
 #else
-	success = (mNetwork->Connect(EndPoint(SERVER_IP, SERVER_PORT)));
+	success = (mNetwork->Connect(EndPoint("127.0.0.1", SERVER_PORT)));
 #endif
 	if (success == false) return success;
 
-	std::string user_name = "None";
-#ifdef LOGIN_WITH_ID
+	std::string user_name = "pepsi90";
+#ifdef QUERY_ID
 	if (!mQueryWindow->InitWindow(L"IDQueryWindow")) return false;
 	mQueryWindow->SetLabel(L"Enter user name");
 	mQueryWindow->Run();
 
 	user_name = mQueryWindow->GetAnswer();
 #endif
-	if (success) mNetwork->Start(mGraphics.get(), user_name.c_str());
+	if (success)
+	{
+		mChatWindow->SetNetworkPtr(mNetwork.get());
+		mNetwork->SetInterfaces(mGraphics.get(), mChatWindow.get(), mLogWindow.get());
+		mNetwork->Start(user_name.c_str());
+	}
 	return success;
+}
+
+void D2DApp::RepositionWindows()
+{
+	RECT rect{};
+	GetWindowRect(mHwnd, &rect);
+	rect.left += mWindowWidth;
+	mChatWindow->SetPosition(rect);
+	rect.top += mWindowHeight - 300.0f;
+	mLogWindow->SetPosition(rect);
+	
 }
 
 void D2DApp::Run()
 {
 	Window::ShowWindow();
+	RepositionWindows();
+	mChatWindow->Run();
+	mLogWindow->Run();
 
 	mTimer->Reset();
 
@@ -95,18 +117,20 @@ LRESULT D2DApp::OnProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam)
 
 	case WM_DESTROY:
 	{
-	#ifndef STANDARD_ALONE
 		mNetwork->Disconnect();
-	#endif
 		PostQuitMessage(0);
 		return 0;
+	}
+
+	case WM_MOVING:
+	{
+		RepositionWindows();
+		break;
 	}
 	case WM_KEYUP:
 		if (wParam == VK_ESCAPE)
 		{
-		#ifndef STANDARD_ALONE
 			mNetwork->Disconnect();
-		#endif
 			PostQuitMessage(0);
 			return 0;
 		}
