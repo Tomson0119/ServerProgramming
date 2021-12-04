@@ -43,8 +43,7 @@ public:
 
 public:
 	int ID;
-	short PosX, PosY;
-	char Name[MAX_NAME_SIZE];	
+	PlayerInfo Info;
 
 	ClientType Type;
 	int LastMoveTime;
