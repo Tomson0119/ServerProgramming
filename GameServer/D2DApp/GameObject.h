@@ -27,17 +27,16 @@ public:
 	void Rotate(float degree);
 	void Scale(float sx, float sy);
 
-	void Draw(ID2D1HwndRenderTarget* rt, IDWriteTextFormat* textFormat);
+	virtual void Draw(
+		ID2D1HwndRenderTarget* rt,
+		IDWriteTextFormat* textFormat,
+		ID2D1SolidColorBrush* textColor);
 	void DrawIDLabel(
 		ID2D1HwndRenderTarget* rt, 
 		IDWriteTextFormat* textFormat,
 		ID2D1SolidColorBrush* textColor);
 	void DrawChatLabel(
 		ID2D1HwndRenderTarget* rt, 
-		IDWriteTextFormat* textFormat,
-		ID2D1SolidColorBrush* textColor);
-	void DrawPositionLabel(
-		ID2D1HwndRenderTarget* rt,
 		IDWriteTextFormat* textFormat,
 		ID2D1SolidColorBrush* textColor);
 
@@ -66,7 +65,39 @@ protected:
 
 	short mPosX, mPosY;
 	bool mChatActive;
+	float mChatShowedTime;
 
 	FLOAT mRotationDegree = 0.0f;
 	bool mIsWired = false;
+};
+
+class Player : public GameObject
+{
+public:
+	Player(ID2D1HwndRenderTarget* rt);
+	virtual ~Player();
+
+	void SetInfo(short level, short hp, short max_hp, short exp);
+
+	virtual void Draw(
+		ID2D1HwndRenderTarget* rt, 
+		IDWriteTextFormat* textFormat,
+		ID2D1SolidColorBrush* textColor);
+
+private:
+	void DrawPositionLabel(
+		ID2D1HwndRenderTarget* rt,
+		IDWriteTextFormat* textFormat,
+		ID2D1SolidColorBrush* textColor);
+
+	void DrawPlayerInfoLabel(
+		ID2D1HwndRenderTarget* rt,
+		IDWriteTextFormat* textFormat,
+		ID2D1SolidColorBrush* textColor);
+
+private:
+	short mHP;
+	short mMaxHP;
+	short mEXP;
+	short mLevel;
 };

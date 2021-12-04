@@ -4,7 +4,8 @@
 
 
 GameObject::GameObject(ID2D1HwndRenderTarget* rt)
-	: mRTSize(rt->GetSize()), mChatActive(false), mPosX(0), mPosY(0)
+	: mRTSize(rt->GetSize()), mChatActive(false), 
+	  mPosX(0), mPosY(0), mChatShowedTime(0.0f)
 {
 }
 
@@ -21,6 +22,7 @@ void GameObject::SetChat(const std::wstring& chat)
 {
 	mChat = chat;
 	mChatActive = true;
+	mChatShowedTime = 0.0f;
 }
 
 void GameObject::SetPosition(const D2D1_POINT_2F& pos)
@@ -46,7 +48,10 @@ void GameObject::Scale(float sx, float sy)
 	mScale.height = sy;
 }
 
-void GameObject::Draw(ID2D1HwndRenderTarget* rt, IDWriteTextFormat* textFormat)
+void GameObject::Draw(
+	ID2D1HwndRenderTarget* rt, 
+	IDWriteTextFormat* textFormat,
+	ID2D1SolidColorBrush* textColor)
 {
 	SetTransform(rt);
 	
@@ -59,6 +64,9 @@ void GameObject::Draw(ID2D1HwndRenderTarget* rt, IDWriteTextFormat* textFormat)
 		else
 			mShape->FillShape(rt, mSolidColorBrush.Get());
 	}
+
+	DrawIDLabel(rt, textFormat, textColor);
+	DrawChatLabel(rt, textFormat, textColor);
 }
 
 void GameObject::DrawIDLabel(
@@ -94,19 +102,6 @@ void GameObject::DrawChatLabel(
 	rt->DrawText(mChat.c_str(), (UINT32)mChat.size(), textFormat, { -w, -hh - font_size- offset_y, +w, -hh }, textColor);
 }
 
-void GameObject::DrawPositionLabel(ID2D1HwndRenderTarget* rt, IDWriteTextFormat* textFormat, ID2D1SolidColorBrush* textColor)
-{
-	SetTransform(rt);
-
-	D2D1_SIZE_F rtSize = rt->GetSize();
-	float left = -rtSize.width * 0.5f;
-	float top = -rtSize.height * 0.5f;
-
-	std::wstring label = L"( " + std::to_wstring(mPosX) + L", " + std::to_wstring(mPosY) + L" )";
-	rt->DrawText(label.c_str(), (UINT32)label.size(), textFormat, 
-		{ left, top, left + 100.0f, top + 50.0f }, textColor);
-}
-
 void GameObject::SetTransform(ID2D1HwndRenderTarget* rt)
 {
 	D2D1_MATRIX_3X2_F translation = D2D1::Matrix3x2F::Translation(mPosition.x, mPosition.y);
@@ -120,13 +115,70 @@ void GameObject::Update(const float elapsed)
 {
 	if (mChatActive)
 	{
-		static float accum_time = 0.0f;
-		accum_time += elapsed;
-		if (accum_time > 1.0f)
+		mChatShowedTime += elapsed;
+		if (mChatShowedTime > 1.0f)
 		{
 			mChat.clear();
-			accum_time = 0.0f;
+			mChatShowedTime = 0.0f;
 			mChatActive = false;
 		}
 	}
+}
+
+Player::Player(ID2D1HwndRenderTarget* rt)
+	: GameObject(rt), mHP(0), mMaxHP(0), mEXP(0), mLevel(0)
+{
+}
+
+Player::~Player()
+{
+}
+
+void Player::SetInfo(short level, short hp, short max_hp, short exp)
+{
+	mLevel = level;
+	mHP = hp;
+	mMaxHP = hp;
+	mEXP = exp;
+}
+
+void Player::Draw(
+	ID2D1HwndRenderTarget* rt, 
+	IDWriteTextFormat* textFormat,
+	ID2D1SolidColorBrush* textColor)
+{
+	GameObject::Draw(rt, textFormat, textColor);
+	DrawPositionLabel(rt, textFormat, textColor);
+	DrawPlayerInfoLabel(rt, textFormat, textColor);
+}
+
+void Player::DrawPositionLabel(
+	ID2D1HwndRenderTarget* rt, 
+	IDWriteTextFormat* textFormat,
+	ID2D1SolidColorBrush* textColor)
+{
+	D2D1_SIZE_F rtSize = rt->GetSize();
+	float hw = rtSize.width * 0.5f;
+	float hh = rtSize.height * 0.5f;
+
+	std::wstring label = L"( " + std::to_wstring(mPosX) + L", " + std::to_wstring(mPosY) + L" )";
+	rt->DrawText(label.c_str(), (UINT32)label.size(), textFormat,
+		{ -hw * 0.5f, -hh + 10.0f, hw * 0.5f, -hh + 30.0f }, textColor);
+}
+
+void Player::DrawPlayerInfoLabel(
+	ID2D1HwndRenderTarget* rt,
+	IDWriteTextFormat* textFormat,
+	ID2D1SolidColorBrush* textColor)
+{
+	D2D1_SIZE_F rtSize = rt->GetSize();
+	float hw = rtSize.width * 0.5f;
+	float hh = rtSize.height * 0.5f;
+
+	std::wstring label = 
+		L"LEVEL. " + std::to_wstring(mLevel) + L"\t\tHP. " + std::to_wstring(mHP) 
+		+ L" / " + std::to_wstring(mMaxHP) + L"\t\tEXP. " + std::to_wstring(mEXP)
+		+ L" / " + std::to_wstring(100 * (int)pow(2, mLevel-1));
+	rt->DrawText(label.c_str(), (UINT32)label.size(), textFormat,
+		{ -hw, hh - 30.0f, hw, hh - 10.0f }, textColor);
 }
