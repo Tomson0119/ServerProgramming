@@ -2,6 +2,8 @@
 #include "queryWindow.h"
 
 QueryWindow::QueryWindow()
+	: mWinCaption{L"Query Window"},
+	  mWidth(600), mHeight(200)
 {
 }
 
@@ -11,7 +13,7 @@ QueryWindow::~QueryWindow()
 
 bool QueryWindow::InitWindow(const std::wstring& classname)
 {
-	if (!Window::Init({ 600,200 }, L"QueryWindow", classname.c_str()))
+	if (!Window::Init({ mWidth, mHeight }, mWinCaption, classname))
 		return false;
 	return true;
 }

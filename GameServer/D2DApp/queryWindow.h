@@ -15,15 +15,14 @@ public:
 	std::string GetAnswer() const { return mAnswer; }
 
 public:
-	virtual PCWSTR ClassName() const { return L"Query Window"; }
 	virtual LRESULT OnProcessMessage(UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 private:
-	const std::wstring mWinCaption = L"QueryWindow";
+	std::wstring mWinCaption;
 
-	const int mWidth = 600;
-	const int mHeight = 200;
-
+	int mWidth;
+	int mHeight;
+	
 	HWND mTextBox{};
 
 	std::wstring mLabel;
