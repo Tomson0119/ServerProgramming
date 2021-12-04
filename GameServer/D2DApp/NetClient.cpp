@@ -1,10 +1,12 @@
 #include "stdafx.h"
 #include "NetClient.h"
 #include "Graphics.h"
+#include "ChatWindow.h"
+#include "LogWindow.h"
 
 NetClient::NetClient()
 	: Socket(), mLoop(true),
-	  mIOCP{}, mScene()
+	  mIOCP{}, mScene(), mChatWin(), mLogWin()
 {
 	Init();
 }
@@ -15,14 +17,21 @@ NetClient::~NetClient()
 		mSocketThread.join();
 }
 
-void NetClient::Start(GraphicScene* scene, const char* name)
+void NetClient::SetInterfaces(GraphicScene* scene, ChatWindow* chatWin, LogWindow* logWin)
 {
 	mScene = scene;
+	mChatWin = chatWin;
+	mLogWin = logWin;
+}
+
+void NetClient::Start(const std::string& name)
+{
+	mUsername = name;
 
 	mIOCP.RegisterDevice(mSocket, 0);
 	mSocketThread = std::thread{ NetClient::Update, std::ref(*this) };
 	RecvMsg();
-	SendLoginPacket(name);
+	SendLoginPacket(name.c_str());
 }
 
 void NetClient::SendLoginPacket(const char* name)
@@ -30,7 +39,7 @@ void NetClient::SendLoginPacket(const char* name)
 	cs_packet_login login_packet{};
 	login_packet.size = sizeof(cs_packet_login);
 	login_packet.type = CS_PACKET_LOGIN;
-	strcpy_s(login_packet.name, name);
+	strncpy_s(login_packet.name, name, strlen(name));
 	SendMsg(reinterpret_cast<char*>(&login_packet), login_packet.size);
 }
 
@@ -57,6 +66,15 @@ void NetClient::SendMovePacket(char input)
 	}
 	move_packet.direction = dir;
 	SendMsg(reinterpret_cast<char*>(&move_packet), move_packet.size);
+}
+
+void NetClient::SendChatPacket(const char* msg)
+{
+	cs_packet_chat chat_packet{};
+	chat_packet.size = sizeof(cs_packet_chat);
+	chat_packet.type = CS_PACKET_CHAT;
+	strncpy_s(chat_packet.message, msg, strlen(msg));
+	SendMsg(reinterpret_cast<char*>(&chat_packet), chat_packet.size);
 }
 
 void NetClient::Disconnect()
@@ -132,14 +150,32 @@ void NetClient::ProcessPackets()
 		{
 			sc_packet_login_ok login_packet{};
 			mMsgQueue.Pop(reinterpret_cast<uchar*>(&login_packet), sizeof(sc_packet_login_ok));
-			if (login_packet.success == false) 
-			{
-				OutputDebugString(L"Login failed\n");
-				Disconnect();
-				return;
-			}
-			mScene->InitializePlayer(login_packet.id, login_packet.name, login_packet.x, login_packet.y);
+			mScene->InitializePlayer(login_packet, mUsername.c_str());
 			break;
+		}
+		case SC_PACKET_LOGIN_FAIL:
+		{
+			sc_packet_login_fail fail_packet{};
+			mMsgQueue.Pop(reinterpret_cast<uchar*>(&fail_packet), sizeof(sc_packet_login_fail));
+			std::wstring str = L"Login failed: ";
+			
+			switch (fail_packet.reason)
+			{
+			case -1:
+				str += L"일치하는 ID가 존재하지 않습니다.";
+				break;
+			case 0:
+				str += L"이미 해당 ID로 접속한 기록이 있습니다.";
+				break;
+			case 1:
+				str += L"최대 유저 접속 수에 도달하여 로그인이 거부되었습니다.";
+				break;
+			}
+
+			MessageBoxW(NULL, str.c_str(), L"Login Error", MB_OK);
+			mScene->Quit();
+			Disconnect();
+			return;
 		}
 		case SC_PACKET_MOVE:
 		{
@@ -167,6 +203,7 @@ void NetClient::ProcessPackets()
 			sc_packet_chat chat_pck{};
 			mMsgQueue.Pop(reinterpret_cast<uchar*>(&chat_pck), sizeof(sc_packet_chat));
 			mScene->UpdatePlayerChat(chat_pck.id, chat_pck.message);
+			mChatWin->AppendMessage(chat_pck.id, chat_pck.message);
 			break;
 		}
 		default:

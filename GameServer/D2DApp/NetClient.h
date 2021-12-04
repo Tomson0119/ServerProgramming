@@ -1,6 +1,8 @@
 #pragma once
 
 class GraphicScene;
+class ChatWindow;
+class LogWindow;
 
 class NetClient : public Socket
 {
@@ -8,10 +10,12 @@ public:
 	NetClient();
 	virtual ~NetClient();
 
-	void Start(GraphicScene* scene, const char* name);
+	void SetInterfaces(GraphicScene* scene, ChatWindow* chatWin, LogWindow* logWin);
+	void Start(const std::string& name);
 
 	void SendLoginPacket(const char* name);
 	void SendMovePacket(char input);
+	void SendChatPacket(const char* msg);
 
 	void Disconnect();
 
@@ -30,4 +34,8 @@ private:
 	std::atomic_bool mLoop;
 
 	GraphicScene* mScene;
+	ChatWindow* mChatWin;
+	LogWindow* mLogWin;
+
+	std::string mUsername;
 };
