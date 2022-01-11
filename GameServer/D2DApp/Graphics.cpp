@@ -11,7 +11,7 @@ GraphicScene::GraphicScene()
 	: mCameraMatrix(D2D1::Matrix3x2F::Identity()),
 	  mCameraPosition(D2D1::Point2F(0.0f, 0.0f)),
 	  mPlayerOffset(D2D1::Point2F(0.0f, 0.0f)),
-	  mPlayerID(0), mChatShowedTime(0.0f)
+	  mPlayerID(0), mChatShowedTime(0.0f), mAppHwnd()
 {
 }
 
@@ -119,77 +119,130 @@ void GraphicScene::InitializePlayer(sc_packet_login_ok& player_info, const char*
 	player->SetPosition({
 		(float)player_info.x * mPlayerOffset.x * 2 + mPlayerOffset.x,
 		(float)player_info.y * mPlayerOffset.y * 2 + mPlayerOffset.y });
+	mMovingObjectsLock.lock();
 	mMovingObjects[player_info.id] = std::move(player);
+	mMovingObjectsLock.unlock();
 	mPlayerID = player_info.id;
 }
 
 void GraphicScene::CreateNewObject(int id, char obj_type, const char* name, short x, short y)
 {
-	mMovingObjects[id] = std::make_unique<GameObject>(mRenderTarget.Get());
-	mMovingObjects[id]->SetShape(std::make_unique<Circle>(16.0f));
+	auto newObj = std::make_unique<GameObject>(mRenderTarget.Get());
+	newObj->SetShape(std::make_unique<Circle>(16.0f));
 	
 	switch (obj_type)
 	{
 	case 0:
-		mMovingObjects[id]->SetColor(mRenderTarget.Get(), D2D1::ColorF(1.0f, 0.0f, 0.0f, 1.0f));
+		newObj->SetColor(mRenderTarget.Get(), D2D1::ColorF(1.0f, 0.0f, 0.0f, 1.0f));
 		break;
 
 	case 1:
-		mMovingObjects[id]->SetColor(mRenderTarget.Get(), D2D1::ColorF(0.0f, 1.0f, 0.0f, 1.0f));
+		newObj->SetColor(mRenderTarget.Get(), D2D1::ColorF(0.0f, 1.0f, 0.0f, 1.0f));
 		break;
-	}		
-	
-	mMovingObjects[id]->SetID(CharToWString(name));
-	mMovingObjects[id]->SetCamera(&mCameraMatrix);
-	mMovingObjects[id]->SetCoord(x, y);
-	mMovingObjects[id]->SetPosition({
+	}
+	newObj->SetID(CharToWString(name));
+	newObj->SetCamera(&mCameraMatrix);
+	newObj->SetCoord(x, y);
+	newObj->SetPosition({
 		(float)x * mPlayerOffset.x * 2 + mPlayerOffset.x, 
 		(float)y * mPlayerOffset.y * 2 + mPlayerOffset.y });
+
+	mMovingObjectsLock.lock();
+	mMovingObjects[id] = std::move(newObj);
+	mMovingObjectsLock.unlock();
 }
 
 void GraphicScene::UpdatePlayerPosition(int id, short x, short y)
 {
-	if (mMovingObjects.find(id) == mMovingObjects.end())
+	mMovingObjectsLock.lock();
+	if(FindMovingObjectID(id))
 	{
-		std::stringstream ss;
-		ss << "Can't update position to object [ID " << id << "]\n";
-		OutputDebugStringA(ss.str().c_str());
-		return;
+		mMovingObjects[id]->SetCoord(x, y);
+		mMovingObjects[id]->SetPosition({
+			(float)x * mPlayerOffset.x * 2 + mPlayerOffset.x,
+			(float)y * mPlayerOffset.y * 2 + mPlayerOffset.y });
 	}
-	mMovingObjects[id]->SetCoord(x, y);
-	mMovingObjects[id]->SetPosition({
-		(float)x * mPlayerOffset.x * 2 + mPlayerOffset.x,
-		(float)y * mPlayerOffset.y * 2 + mPlayerOffset.y });
+	mMovingObjectsLock.unlock();
 }
 
 void GraphicScene::UpdatePlayerChat(int id, char* msg)
 {
-	if (mMovingObjects.find(id) == mMovingObjects.end())
-	{
-		std::stringstream ss;
-		ss << "Can't set chat message to object [ID " << id << "]\n";
-		OutputDebugStringA(ss.str().c_str());
-		return;
-	}
-	mMovingObjects[id]->SetChat(CharToWString(msg));
+	mMovingObjectsLock.lock();
+	if(FindMovingObjectID(id))
+		mMovingObjects[id]->SetChat(CharToWString(msg));
+	mMovingObjectsLock.unlock();
+}
+
+void GraphicScene::UpdatePlayerStatus(sc_packet_status_change& status)
+{
+	mMovingObjectsLock.lock();
+	if (FindMovingObjectID(mPlayerID))
+		mMovingObjects[mPlayerID]->SetInfo(
+			status.level, status.hp,
+			status.maxhp, status.exp);
+	mMovingObjectsLock.unlock();
 }
 
 void GraphicScene::EraseObject(int id)
 {
+	mMovingObjectsLock.lock();
+	if(FindMovingObjectID(id))	
+		mMovingObjects.erase(id);
+	mMovingObjectsLock.unlock();
+}
+
+bool GraphicScene::FindMovingObjectID(int id)
+{
+	bool ret = true;
 	if (mMovingObjects.find(id) == mMovingObjects.end())
 	{
 		std::stringstream ss;
-		ss << "Can't erase object [ID " << id << "]\n";
+		ss << "Can't find object ID [" << id << "]\n";
 		OutputDebugStringA(ss.str().c_str());
-		return;
+		ret = false;
 	}
-	
-	mMovingObjects.erase(id);
+	return ret;
+}
+
+void GraphicScene::CreateAttackArea()
+{
+	float rect_size = 2368.0f;
+	float h_size = rect_size * 0.5f;
+
+	auto playerCoord = mMovingObjects[mPlayerID]->GetCoord();
+
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			auto board = std::make_unique<GameObject>(mRenderTarget.Get());
+			board->SetShape(std::make_unique<Rect>(D2D1::SizeF(rect_size / 64.0f, rect_size / 64.0f)));
+			board->SetColor(mRenderTarget.Get(), D2D1::ColorF(0.0f,0.0f,1.0f,0.3f));
+			board->SetCamera(&mCameraMatrix);
+			board->SetPosition({
+				(float)(playerCoord.first + j - 1)* mPlayerOffset.x * 2 + mPlayerOffset.x, 
+				(float)(playerCoord.second + i - 1)* mPlayerOffset.y * 2 + mPlayerOffset.y });
+			board->SetDurationTime(600ms);
+			mEffects.insert(move(board));
+		}
+	}
 }
 
 void GraphicScene::Quit()
 {
 	PostMessage(mAppHwnd, WM_CLOSE, NULL, NULL);
+}
+
+std::wstring GraphicScene::GetPlayerName(int id)
+{
+	mMovingObjectsLock.lock();
+	if (FindMovingObjectID(id))
+	{
+		mMovingObjectsLock.unlock();
+		return mMovingObjects[id]->GetID();
+	}
+	mMovingObjectsLock.unlock();
+	return {};
 }
 
 void GraphicScene::Resize(const HWND& hwnd)
@@ -209,11 +262,15 @@ void GraphicScene::Draw()
 	mRenderTarget->Clear(ColorF(ColorF::White));
 
 	for (const auto& staticObj : mStaticObjects)
-		if(staticObj)
-			staticObj->Draw(mRenderTarget.Get(), mTextFormat.Get(), mLabelColorBrush.Get());
+		if(staticObj) staticObj->Draw(mRenderTarget.Get(), mTextFormat.Get(), mLabelColorBrush.Get());
+	
+	for (const auto& effect : mEffects)
+		if (effect) effect->Draw(mRenderTarget.Get(), mTextFormat.Get(), mLabelColorBrush.Get());
+
+	mMovingObjectsLock.lock();
 	for (const auto& [_, movingObj] : mMovingObjects)
-		if(movingObj)
-			movingObj->Draw(mRenderTarget.Get(), mTextFormat.Get(), mLabelColorBrush.Get());
+		if(movingObj) movingObj->Draw(mRenderTarget.Get(), mTextFormat.Get(), mLabelColorBrush.Get());
+	mMovingObjectsLock.unlock();
 
 	mRenderTarget->EndDraw();
 }
@@ -235,5 +292,15 @@ void GraphicScene::Update(const float elapsed)
 		staticObj->Update(elapsed);
 	for (const auto& [_, movingObj] : mMovingObjects)
 		movingObj->Update(elapsed);
+
+	EraseTimeOutObjects();
 }
 
+void GraphicScene::EraseTimeOutObjects()
+{
+	for (auto iter = mEffects.begin();iter!=mEffects.end();)
+	{
+		if ((*iter)->IsTimeOut()) iter = mEffects.erase(iter);
+		else iter++;
+	}
+}

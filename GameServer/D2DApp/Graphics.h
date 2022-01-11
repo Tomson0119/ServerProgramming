@@ -23,9 +23,18 @@ public:
 	void CreateNewObject(int id, char obj_type, const char* name, short x, short y);
 	void UpdatePlayerPosition(int id, short x, short y);
 	void UpdatePlayerChat(int id, char* msg);
+	void UpdatePlayerStatus(sc_packet_status_change& status);
 	void EraseObject(int id);
+	
+	bool FindMovingObjectID(int id);
+
+	void CreateAttackArea();
+	void EraseTimeOutObjects();
 
 	void Quit();
+
+public:
+	std::wstring GetPlayerName(int id);
 
 private:
 	bool CreateD2D1Resources(const HWND& hwnd);
@@ -52,8 +61,10 @@ private:
 	D2D1_POINT_2F mCameraPosition;
 
 	int mPlayerID;
+	std::mutex mMovingObjectsLock;
 	std::unordered_map<int, std::unique_ptr<GameObject>> mMovingObjects;
 	std::vector<std::unique_ptr<GameObject>> mStaticObjects;
+	std::unordered_set<std::unique_ptr<GameObject>> mEffects;
 
 	float mChatShowedTime;
 
