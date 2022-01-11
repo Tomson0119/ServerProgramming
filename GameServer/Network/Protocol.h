@@ -20,7 +20,6 @@ const char CS_PACKET_ATTACK = 3;
 const char CS_PACKET_CHAT = 4;
 const char CS_PACKET_TELEPORT = 5;
 
-
 const char SC_PACKET_LOGIN_OK = 1;
 const char SC_PACKET_MOVE = 2;
 const char SC_PACKET_PUT_OBJECT = 3;
@@ -28,6 +27,7 @@ const char SC_PACKET_REMOVE_OBJECT = 4;
 const char SC_PACKET_CHAT = 5;
 const char SC_PACKET_LOGIN_FAIL = 6;
 const char SC_PACKET_STATUS_CHANGE = 7;
+const char SC_PACKET_BATTLE_RESULT = 8;
 
 const int MaxBufferSize = 1024;
 const int RANGE = 7;
@@ -116,6 +116,15 @@ struct sc_packet_status_change {
 	short	level;
 	short	hp, maxhp;
 	int		exp;
+};
+
+struct sc_packet_battle_result
+{
+	unsigned char size;
+	char type;
+	char result_type; // -1: None, 0: 플레이어 공격, 1: 플레이어 피해, 2: 경험치 획득
+	int target;
+	int value;
 };
 
 #pragma pack(pop)
