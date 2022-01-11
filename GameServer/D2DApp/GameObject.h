@@ -19,8 +19,14 @@ public:
 	void SetChat(const std::wstring& chat);
 	void SetPosition(const D2D1_POINT_2F& pos);
 
+	virtual void SetInfo(short level, short hp, short max_hp, short exp) { }
+
+	void SetDurationTime(std::chrono::milliseconds time);
+	bool IsTimeOut();
+
 	D2D1_POINT_2F GetPosition() const { return mPosition; }
 	std::pair<short, short> GetCoord() const { return { mPosX, mPosY }; }
+	std::wstring GetID() const { return mID; }
 
 public:
 	void Move(float dx, float dy);
@@ -69,6 +75,9 @@ protected:
 
 	FLOAT mRotationDegree = 0.0f;
 	bool mIsWired = false;
+
+	std::chrono::system_clock::time_point mStartTime;
+	std::chrono::milliseconds mDurationTime;
 };
 
 class Player : public GameObject
@@ -77,7 +86,7 @@ public:
 	Player(ID2D1HwndRenderTarget* rt);
 	virtual ~Player();
 
-	void SetInfo(short level, short hp, short max_hp, short exp);
+	virtual void SetInfo(short level, short hp, short max_hp, short exp) override;
 
 	virtual void Draw(
 		ID2D1HwndRenderTarget* rt, 

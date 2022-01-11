@@ -4,8 +4,9 @@
 
 
 GameObject::GameObject(ID2D1HwndRenderTarget* rt)
-	: mRTSize(rt->GetSize()), mChatActive(false), 
-	  mPosX(0), mPosY(0), mChatShowedTime(0.0f)
+	: mRTSize(rt->GetSize()), mChatActive(false),
+	  mPosX(0), mPosY(0), mChatShowedTime(0.0f),
+	  mDurationTime(0)
 {
 }
 
@@ -29,6 +30,18 @@ void GameObject::SetPosition(const D2D1_POINT_2F& pos)
 {
 	mPosition.x = mRTSize.width * 0.5f + pos.x;
 	mPosition.y = mRTSize.height * 0.5f + pos.y;
+}
+
+void GameObject::SetDurationTime(std::chrono::milliseconds time)
+{
+	mDurationTime = time;
+	mStartTime = std::chrono::system_clock::now();
+}
+
+bool GameObject::IsTimeOut()
+{
+	if (mDurationTime == std::chrono::milliseconds(0)) return false;
+	return (mStartTime + mDurationTime < std::chrono::system_clock::now());
 }
 
 void GameObject::Move(float dx, float dy)
@@ -90,7 +103,7 @@ void GameObject::DrawChatLabel(
 	IDWriteTextFormat* textFormat,
 	ID2D1SolidColorBrush* textColor)
 {
-	if (mChat.size() == 0)
+	if (mChat.size() == 0 || mShape.get() == nullptr)
 		return;
 
 	D2D1_SIZE_F shape_size = mShape->GetSize();
