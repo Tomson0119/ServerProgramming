@@ -35,7 +35,7 @@
 using Microsoft::WRL::ComPtr;
 using D2D1::ColorF;
 
-#define LOCAL_ADDRESS
+//#define LOCAL_ADDRESS
 #define QUERY_ID
 
 struct POINT_INT
@@ -44,11 +44,20 @@ struct POINT_INT
 	int y;
 };
 
-inline std::wstring CharToWString(const std::string& str)
+inline std::wstring StringToWString(const std::string& str)
 {
 	int size = MultiByteToWideChar(CP_ACP, 0, &str[0], (int)str.size(), NULL, 0);
 	std::wstring wstr(size, 0);
 	MultiByteToWideChar(CP_ACP, 0, &str[0], (int)str.size(), &wstr[0], size);
+	return wstr;
+}
+
+inline std::wstring CharToWString(const char* str)
+{
+	std::string s_str(str);
+	int size = MultiByteToWideChar(CP_ACP, 0, &s_str[0], (int)s_str.size(), NULL, 0);
+	std::wstring wstr(size, 0);
+	MultiByteToWideChar(CP_ACP, 0, &s_str[0], (int)s_str.size(), &wstr[0], size);
 	return wstr;
 }
 
