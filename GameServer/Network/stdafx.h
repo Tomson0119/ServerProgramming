@@ -30,6 +30,8 @@ extern "C" {
 #include "NetException.h"
 #include "Protocol.h"
 
+#define ABS(x) ((x < 0) ? -(x) : (x))
+
 using namespace std::chrono_literals;
 
 typedef unsigned char uchar;
@@ -44,3 +46,4 @@ struct PlayerInfo
 	short max_hp;
 	int exp;
 };
+
