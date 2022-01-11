@@ -4,7 +4,8 @@
 
 enum class EventType : char
 {
-	NPC_MOVE
+	NPC_MOVE,
+	NPC_REVIVE
 };
 
 struct TimerEvent
