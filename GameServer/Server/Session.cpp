@@ -32,15 +32,7 @@ void Session::AssignAcceptedID(int id, SOCKET sck)
 
 bool Session::CompareAndChangeState(State target_state, State new_state)
 {
-	bool ret = false;
-	mStateLock.lock();
-	if (mState == target_state)
-	{
-		mState = new_state;
-		ret = true;
-	}
-	mStateLock.unlock();
-	return ret;
+	return (mState.compare_exchange_strong(target_state, new_state));
 }
 
 void Session::InsertViewID(int id)
@@ -95,14 +87,54 @@ void Session::RecvMsg()
 	Recv(mRecvOverlapped);
 }
 
-bool Session::IsSame(PlayerInfo& coord)
+bool Session::IsSame(int x, int y)
 {
-	return (Info.x == coord.x && Info.y == coord.y);
+	return (Info.x == x && Info.y == y);
 }
 
 bool Session::IsStateWithoutLock(State state)
 {
 	return (mState == state);
+}
+
+void Session::Revive()
+{
+	Info.hp = Info.max_hp;
+	mState = State::INGAME;
+}
+
+int Session::IncreaseEXP(int opLevel)
+{
+	Info.exp += opLevel * opLevel * 2;
+	IncreaseLevelWithCondition();
+	return opLevel * opLevel * 2;
+}
+
+void Session::IncreaseLevelWithCondition()
+{
+	while (true) {
+		int expNeeded = 100 * pow(2, Info.level - 1);
+		if (expNeeded <= Info.exp)
+		{
+			Info.exp -= expNeeded;
+			Info.level += 1;
+			Info.max_hp = 150 * Info.level;
+			Info.hp = Info.max_hp;
+			AttackPower = Info.level * 5;
+		}
+		else break;
+	}
+}
+
+void Session::SetAttackDuration(std::chrono::milliseconds time)
+{
+	mAttackedTime = std::chrono::system_clock::now();
+	mAttackDuration = time;
+}
+
+bool Session::IsAttackTimeOut() const
+{
+	return (mAttackedTime + mAttackDuration < std::chrono::system_clock::now());
 }
 
 bool Session::IsStateWithLock(State state)

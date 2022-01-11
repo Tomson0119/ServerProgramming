@@ -33,7 +33,7 @@ public:
 	void SendMsg(char* msg, int bytes);
 	void RecvMsg();
 
-	bool IsSame(PlayerInfo& coord);
+	bool IsSame(int x, int y);
 	bool IsStateWithLock(State state);
 	bool IsStateWithoutLock(State state);
 
@@ -42,8 +42,19 @@ public:
 	const std::unordered_set<int>& GetViewList() const { return mViewList; }
 
 public:
+	void DecreaseHP(int amount) { Info.hp -= amount; }
+	bool IsDead() const { return (Info.hp <= 0); }
+	void Revive();
+	int IncreaseEXP(int opLevel);
+	void IncreaseLevelWithCondition();
+
+	void SetAttackDuration(std::chrono::milliseconds time);
+	bool IsAttackTimeOut() const;
+
+public:
 	int ID;
 	PlayerInfo Info;
+	int AttackPower;
 
 	ClientType Type;
 	int LastMoveTime;
@@ -59,5 +70,8 @@ private:
 	std::unordered_set<int> mViewList;
 
 	std::mutex mStateLock;
-	State mState;
+	std::atomic<State> mState;
+
+	std::chrono::system_clock::time_point mAttackedTime;
+	std::chrono::milliseconds mAttackDuration;
 };
