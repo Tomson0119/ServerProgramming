@@ -75,9 +75,8 @@ void D2DApp::RepositionWindows()
 	GetWindowRect(mHwnd, &rect);
 	rect.left += mWindowWidth;
 	mChatWindow->SetPosition(rect);
-	rect.top += mWindowHeight - 300.0f;
-	mLogWindow->SetPosition(rect);
-	
+	rect.top += mWindowHeight - 300;
+	mLogWindow->SetPosition(rect);	
 }
 
 void D2DApp::Run()
@@ -138,7 +137,7 @@ LRESULT D2DApp::OnProcessMessage(UINT msg, WPARAM wParam, LPARAM lParam)
 
 	case WM_KEYDOWN:
 	{
-		mNetwork->SendMovePacket(wParam);
+		mNetwork->OnProcessKeyInput((char)wParam);
 		break;
 	}
 	case WM_LBUTTONDOWN:
