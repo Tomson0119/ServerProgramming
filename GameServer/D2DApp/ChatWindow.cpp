@@ -67,13 +67,12 @@ HWND ChatWindow::CreateWindowHandle(const std::wstring& classname)
 		GetModuleHandle(NULL), this);
 }
 
-void ChatWindow::AppendMessage(char id, const char* msg)
+void ChatWindow::AppendMessage(const std::wstring& name, const std::wstring& msg)
 {
 	int idx = GetWindowTextLength(gEditList);
-	std::string chat = "Player " + std::to_string(id) 
-		+ ": " + msg + "\r\n";
+	std::wstring chat = name + L": " + msg + L"\r\n";
 	SendMessage(gEditList, EM_SETSEL, (WPARAM)idx, (LPARAM)idx);
-	SendMessageA(gEditList, EM_REPLACESEL, 0, (LPARAM)chat.c_str());
+	SendMessage(gEditList, EM_REPLACESEL, 0, (LPARAM)chat.c_str());
 }
 
 void ChatWindow::Run()
