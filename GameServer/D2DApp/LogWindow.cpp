@@ -61,13 +61,30 @@ HWND LogWindow::CreateWindowHandle(const std::wstring& classname)
 		GetModuleHandle(NULL), this);
 }
 
-void LogWindow::AppendMessage(char id, const char* msg)
+void LogWindow::AppendLog(const std::wstring& op_name, int value, char log_type)
 {
 	int idx = GetWindowTextLength(gEditList);
-	std::string chat = "Player " + std::to_string(id)
-		+ ": " + msg + "\r\n";
+	std::wstring log;
+	switch (log_type)
+	{
+	case 0: // 플레이어 공격
+		log += op_name + L"에게 " + std::to_wstring(value) + L"의 피해를 입혔습니다.\r\n";
+		break;
+
+	case 1: // 플레이어 피해
+		log += op_name + L"로부터 " + std::to_wstring(value) + L"의 피해를 입었습니다.\r\n";
+		break;
+
+	case 2: // 경험치 획득
+		log += op_name + L"을 쓰러뜨리고" + std::to_wstring(value) + L"의 경험치를 얻었습니다.\r\n";
+		break;
+
+	default:
+		log = L"Invalid information\r\n";
+		break;
+	}
 	SendMessage(gEditList, EM_SETSEL, (WPARAM)idx, (LPARAM)idx);
-	SendMessageA(gEditList, EM_REPLACESEL, 0, (LPARAM)chat.c_str());
+	SendMessage(gEditList, EM_REPLACESEL, 0, (LPARAM)log.c_str());
 }
 
 void LogWindow::Run()
@@ -84,7 +101,7 @@ LRESULT LogWindow::WinProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 		gEditList = CreateWindow(L"EDIT", L"",
 			WS_BORDER | WS_CHILD | WS_VISIBLE | EM_SETREADONLY
 			| WS_VSCROLL | ES_MULTILINE | ES_AUTOVSCROLL,
-			10, 10, 600.0f - 40.0f, 300.0f - 60.0f, hwnd, 0, 0, 0);
+			10, 10, 600 - 40, 300 - 60, hwnd, 0, 0, 0);
 		EnableWindow(gEditList, FALSE);
 		break;
 

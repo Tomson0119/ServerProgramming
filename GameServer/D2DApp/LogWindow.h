@@ -13,7 +13,7 @@ public:
 	void SetPosition(RECT& rect);
 	void Run();
 
-	static void AppendMessage(char id, const char* msg);
+	static void AppendLog(const std::wstring& op_name, int value, char log_type);
 
 private:
 	bool RegisterWindowClass(const std::wstring& classname);
