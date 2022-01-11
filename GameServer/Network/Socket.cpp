@@ -85,7 +85,7 @@ int Socket::Send(WSAOVERLAPPEDEX& overlapped)
 		&overlapped.Overlapped, NULL) != 0)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
-			throw NetException("Send failed");
+			return 0;
 	}
 	return (int)bytes;
 }
@@ -100,7 +100,7 @@ int Socket::Recv(WSAOVERLAPPEDEX& overlapped)
 		&overlapped.Overlapped, NULL) != 0)
 	{
 		if (WSAGetLastError() != WSA_IO_PENDING)
-			throw NetException("Recv failed");
+			return 0;
 	}
 	return (int)bytes;
 }
