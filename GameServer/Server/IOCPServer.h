@@ -17,6 +17,7 @@ public:
 
 	void ProcessPackets(int id, RingBuffer& msgQueue);	
 	void ProcessLoginPacket(cs_packet_login& pck, int myId);
+	void ProcessAttackPacket(int id, const std::unordered_set<int>& viewlist);
 
 	void SendNewPlayerInfoToNearPlayers(int target);
 	void SendNearPlayersInfoToNewPlayer(int sender);
@@ -33,6 +34,8 @@ public:
 	void SendPutObjectPacket(int sender, int target);
 	void SendMovePacket(int sender, int target);
 	void SendRemovePacket(int sender, int target);
+	void SendStatusChangePacket(int sender);
+	void SendBattleResultPacket(int sender, int target, int val, char type);
 	static void SendChatPacket(int sender, int target, char* msg);
 
 	bool IsNPC(int id);
@@ -40,6 +43,8 @@ public:
 
 	void HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, int bytes);
 	void MoveNPC(int id, int direction);
+	void HandleDeadNPC(int id);
+	void HandleRevivedPlayer(int id);
 
 	void MovePosition(short& x, short& y, char direction);
 	static void AddTimer(int obj_id, int player_id, EventType type, int direction, int duration);
@@ -49,7 +54,6 @@ public:
 	void InsertIntoSectorWithoutLock(int id);
 	void InsertIntoSectorWithLock(int id);
 	void EraseFromSectorWidthLock(int id);
-	std::unordered_set<int> GetSector(int id);
 	std::pair<short, short> GetSectorIndex(int id);
 
 	int GetAvailableID();
@@ -62,7 +66,7 @@ public:
 	static void NetworkThreadFunc(IOCPServer& server);
 	static void TimerThreadFunc(IOCPServer& server);
 
-	static const int MaxThreads = 4;
+	static const int MaxThreads = 6;
 
 private:
 	Socket mListenSck;
