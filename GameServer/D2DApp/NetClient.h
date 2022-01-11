@@ -14,7 +14,9 @@ public:
 	void Start(const std::string& name);
 
 	void SendLoginPacket(const char* name);
+	void OnProcessKeyInput(char input);
 	void SendMovePacket(char input);
+	void SendAttackPacket();
 	void SendChatPacket(const char* msg);
 
 	void Disconnect();

@@ -43,6 +43,15 @@ void NetClient::SendLoginPacket(const char* name)
 	SendMsg(reinterpret_cast<char*>(&login_packet), login_packet.size);
 }
 
+void NetClient::OnProcessKeyInput(char input)
+{
+	if (0x25 <= input && input <= 0x28)
+		SendMovePacket(input);
+	else if (input == 'A') {
+		SendAttackPacket();
+	}
+}
+
 void NetClient::SendMovePacket(char input)
 {
 	cs_packet_move move_packet{};
@@ -66,6 +75,14 @@ void NetClient::SendMovePacket(char input)
 	}
 	move_packet.direction = dir;
 	SendMsg(reinterpret_cast<char*>(&move_packet), move_packet.size);
+}
+
+void NetClient::SendAttackPacket()
+{
+	cs_packet_attack attack_packet{};
+	attack_packet.size = sizeof(cs_packet_attack);
+	attack_packet.type = CS_PACKET_ATTACK;
+	SendMsg(reinterpret_cast<char*>(&attack_packet), attack_packet.size);
 }
 
 void NetClient::SendChatPacket(const char* msg)
@@ -203,7 +220,26 @@ void NetClient::ProcessPackets()
 			sc_packet_chat chat_pck{};
 			mMsgQueue.Pop(reinterpret_cast<uchar*>(&chat_pck), sizeof(sc_packet_chat));
 			mScene->UpdatePlayerChat(chat_pck.id, chat_pck.message);
-			mChatWin->AppendMessage(chat_pck.id, chat_pck.message);
+			std::wstring player_name = mScene->GetPlayerName(chat_pck.id);
+			mChatWin->AppendMessage(player_name, CharToWString(chat_pck.message));
+			break;
+		}
+		case SC_PACKET_BATTLE_RESULT:
+		{
+			sc_packet_battle_result battle_pck{};
+			mMsgQueue.Pop(reinterpret_cast<uchar*>(&battle_pck), sizeof(sc_packet_battle_result));
+			if (battle_pck.result_type != -1) {
+				std::wstring target_name = mScene->GetPlayerName(battle_pck.target);
+				mLogWin->AppendLog(target_name, battle_pck.value, battle_pck.result_type);
+			}
+			else mScene->CreateAttackArea();
+			break;
+		}
+		case SC_PACKET_STATUS_CHANGE:
+		{
+			sc_packet_status_change status_pck{};
+			mMsgQueue.Pop(reinterpret_cast<uchar*>(&status_pck), sizeof(sc_packet_status_change));
+			mScene->UpdatePlayerStatus(status_pck);
 			break;
 		}
 		default:
