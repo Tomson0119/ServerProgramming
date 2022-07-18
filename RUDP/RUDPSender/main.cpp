@@ -8,10 +8,10 @@
 using namespace std::chrono_literals;
 
 WSAData wsaData;
-const u_short MY_PORT = 53800;
+//const u_short MY_PORT = 53800;
 
-const std::string HOST_IP = "127.0.0.1";
-const u_short HOST_PORT = 53801;
+const std::string HOST_IP = "192.168.0.83";
+const u_short HOST_PORT = 5505;
 
 int main()
 {
@@ -22,14 +22,19 @@ int main()
 			throw std::exception("Failed to init WSAData");
 		}
 		RUDPSocket netSck(RUDPSocket::SckType::UDP);
-		netSck.bind(MY_PORT);
+		netSck.bind(0);
 		netSck.printEndpoint();
-		netSck.setHostEndpoint(HOST_IP, HOST_PORT);
+
+		sockaddr_in hostEp;
+		hostEp.sin_family = AF_INET;
+		hostEp.sin_port = htons(HOST_PORT);
+		inet_pton(AF_INET, HOST_IP.c_str(), &hostEp.sin_addr);
 
 		uint64_t val = 0;
 		while (val < 16'000)
 		{
-			netSck.sendTo(reinterpret_cast<std::byte*>(&val), sizeof(val));
+			netSck.pushToSendBuffer(reinterpret_cast<std::byte*>(&val), sizeof(val), hostEp);
+			
 			val += 1;
 		}
 	}
