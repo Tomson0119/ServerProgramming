@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Protocol.h" />
     <ClInclude Include="RUDPSocket.h" />
   </ItemGroup>
   <ItemGroup>
