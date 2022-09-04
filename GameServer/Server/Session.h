@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Socket.h"
+
 enum class State : char
 {
 	FREE,

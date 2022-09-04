@@ -113,7 +113,7 @@ int Session::IncreaseEXP(int opLevel)
 void Session::IncreaseLevelWithCondition()
 {
 	while (true) {
-		int expNeeded = 100 * pow(2, Info.level - 1);
+		int expNeeded = 100 * (int)pow(2, Info.level - 1);
 		if (expNeeded <= Info.exp)
 		{
 			Info.exp -= expNeeded;
