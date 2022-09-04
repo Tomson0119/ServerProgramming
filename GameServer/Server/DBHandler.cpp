@@ -68,7 +68,7 @@ std::pair<int, PlayerInfo> DBHandler::ConnectWithID(const std::string& player_id
 	SQLCancel(m_hStmt);
 	SQLCloseCursor(m_hStmt);
 
-	if (retConnected == true) {
+	if ((bool)retConnected == true) {
 		return { 0, {} };
 	}
 

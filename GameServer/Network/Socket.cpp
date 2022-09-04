@@ -55,9 +55,9 @@ void Socket::AsyncAccept(WSAOVERLAPPEDEX& accept_ex)
 	if (sck == INVALID_SOCKET)
 		throw NetException("Socket is invalid");
 
-	accept_ex.Reset(OP::ACCEPT, reinterpret_cast<char*>(&sck), sizeof(sck));
+	accept_ex.Reset(OP::ACCEPT, reinterpret_cast<std::byte*>(&sck), sizeof(sck));
 	
-	if (AcceptEx(mSocket, sck, accept_ex.NetBuffer + sizeof(SOCKET), 0, sizeof(sockaddr_in) + 16,
+	if (AcceptEx(mSocket, sck, accept_ex.NetBuffer.BufStartPtr() + sizeof(SOCKET), 0, sizeof(sockaddr_in) + 16,
 		sizeof(sockaddr_in) + 16, NULL, &accept_ex.Overlapped) == FALSE)
 	{
 		if(WSAGetLastError() != WSA_IO_PENDING)

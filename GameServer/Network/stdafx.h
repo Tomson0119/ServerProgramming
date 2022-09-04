@@ -34,8 +34,6 @@ extern "C" {
 
 using namespace std::chrono_literals;
 
-typedef unsigned char uchar;
-
 struct PlayerInfo
 {
 	char name[MAX_NAME_SIZE];
@@ -46,4 +44,9 @@ struct PlayerInfo
 	short max_hp;
 	int exp;
 };
+
+inline char GetPacketType(std::byte* pck)
+{
+	return *reinterpret_cast<char*>(pck + sizeof(unsigned char));
+}
 

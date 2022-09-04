@@ -20,16 +20,17 @@ public:
 	void SendChatPacket(const char* msg);
 
 	void Disconnect();
-
-	static void Update(NetClient& client);
-
-	void SendMsg(char* msg, int bytes);
+	void SendMsg(std::byte* msg, int bytes);
 	void RecvMsg();
-	void ProcessPackets();
+
+	void HandleCompletionInfo(WSAOVERLAPPEDEX* over, int bytes);
+	void ProcessPackets(WSAOVERLAPPEDEX* over, int bytes);
+
+	static void NetworkThreadFunc(NetClient& client);
 
 private:
 	IOCP mIOCP;
-	RingBuffer mMsgQueue;
+	BufferQueue mMsgQueue;
 	WSAOVERLAPPEDEX mRecvOverlapped;
 
 	std::thread mSocketThread;

@@ -75,7 +75,7 @@ bool Session::FindAndEraseViewID(int id)
 	return false;
 }
 
-void Session::SendMsg(char* msg, int bytes)
+void Session::SendMsg(std::byte* msg, int bytes)
 {
 	WSAOVERLAPPEDEX* send_over = new WSAOVERLAPPEDEX(OP::SEND, msg, bytes);
 	Send(*send_over);

@@ -80,7 +80,7 @@ void IOCPServer::NetworkThreadFunc(IOCPServer& server)
 				continue;
 			}
 
-			server.HandleCompletionInfoByOperation(over_ex, client_id, info.bytes);
+			server.HandleCompletionInfo(over_ex, client_id, info.bytes);
 		}
 	}
 	catch (std::exception& ex)
@@ -89,7 +89,7 @@ void IOCPServer::NetworkThreadFunc(IOCPServer& server)
 	}
 }
 
-void IOCPServer::HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, int bytes)
+void IOCPServer::HandleCompletionInfo(WSAOVERLAPPEDEX* over, int id, int bytes)
 {
 	switch (over->Operation)
 	{
@@ -100,9 +100,10 @@ void IOCPServer::HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, 
 			Disconnect(id);
 			break;
 		}
+		over->NetBuffer.ShiftWritePtr(bytes);
+		ProcessPackets(over, id, bytes);
+
 		Session* client = gClients[id].get();
-		over->MsgQueue.Push(over->NetBuffer, bytes);
-		ProcessPackets(id, over->MsgQueue);
 		client->RecvMsg();
 		break;
 	}
@@ -115,7 +116,7 @@ void IOCPServer::HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, 
 	}
 	case OP::ACCEPT:
 	{
-		SOCKET clientSck = *reinterpret_cast<SOCKET*>(over->NetBuffer);
+		SOCKET clientSck = *reinterpret_cast<SOCKET*>(over->NetBuffer.BufStartPtr());
 
 		int new_id = GetAvailableID();
 		if (new_id == -1) {
@@ -315,18 +316,18 @@ int IOCPServer::GetAvailableID()
 	return -1;
 }
 
-void IOCPServer::ProcessPackets(int id, RingBuffer& msgQueue)
+void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 {
-	while (!msgQueue.IsEmpty())
+	while (over->NetBuffer.Readable())
 	{
-		char type = msgQueue.GetMsgType();
+		std::byte* packet = over->NetBuffer.BufReadPtr();
+		unsigned char type = static_cast<unsigned char>(GetPacketType(packet));
 
 		switch (type)
 		{
 		case CS_PACKET_LOGIN:
 		{
-			cs_packet_login packet_login{};
-			msgQueue.Pop(reinterpret_cast<uchar*>(&packet_login), sizeof(cs_packet_login));
+			cs_packet_login* packet_login = reinterpret_cast<cs_packet_login*>(packet);
 			ProcessLoginPacket(packet_login, id);
 			break;
 		}
@@ -337,15 +338,13 @@ void IOCPServer::ProcessPackets(int id, RingBuffer& msgQueue)
 			
 			if (type == CS_PACKET_MOVE)
 			{
-				cs_packet_move packet_move{};
-				msgQueue.Pop(reinterpret_cast<uchar*>(&packet_move), sizeof(cs_packet_move));
-				MovePosition(gClients[id]->Info.x, gClients[id]->Info.y, packet_move.direction);
-				gClients[id]->LastMoveTime = packet_move.move_time;
+				cs_packet_move* packet_move = reinterpret_cast<cs_packet_move*>(packet);
+				MovePosition(gClients[id]->Info.x, gClients[id]->Info.y, packet_move->direction);
+				gClients[id]->LastMoveTime = packet_move->move_time;
 			}
 			else
 			{
-				cs_packet_teleport packet_teleport{};
-				msgQueue.Pop(reinterpret_cast<uchar*>(&packet_teleport), sizeof(cs_packet_teleport));
+				cs_packet_teleport* packet_teleport = reinterpret_cast<cs_packet_teleport*>(packet);
 				gClients[id]->Info.x = rand() % WORLD_WIDTH;
 				gClients[id]->Info.y = rand() % WORLD_HEIGHT;
 			}
@@ -393,25 +392,23 @@ void IOCPServer::ProcessPackets(int id, RingBuffer& msgQueue)
 		}
 		case CS_PACKET_CHAT:
 		{
-			cs_packet_chat chat_packet{};
-			msgQueue.Pop(reinterpret_cast<uchar*>(&chat_packet), sizeof(cs_packet_chat));
+			cs_packet_chat* chat_packet = reinterpret_cast<cs_packet_chat*>(packet);
 
 			gClients[id]->ViewListLock.lock();
 			auto viewlist = gClients[id]->GetViewList();
 			gClients[id]->ViewListLock.unlock();
 
-			SendChatPacket(id, id, chat_packet.message);
+			SendChatPacket(id, id, chat_packet->message);
 			for (int pid : viewlist)
 			{
 				if (IsNPC(pid) == true) continue;
-				SendChatPacket(pid, id, chat_packet.message);
+				SendChatPacket(pid, id, chat_packet->message);
 			}
 			break;
 		}
 		case CS_PACKET_ATTACK:
 		{
-			cs_packet_attack attack_packet{};
-			msgQueue.Pop(reinterpret_cast<uchar*>(&attack_packet), sizeof(cs_packet_attack));
+			cs_packet_attack* attack_packet = reinterpret_cast<cs_packet_attack*>(packet);
 			
 			if (gClients[id]->IsAttackTimeOut() == false) break;
 
@@ -430,11 +427,11 @@ void IOCPServer::ProcessPackets(int id, RingBuffer& msgQueue)
 	}
 }
 
-void IOCPServer::ProcessLoginPacket(cs_packet_login& pck, int myId)
+void IOCPServer::ProcessLoginPacket(cs_packet_login* pck, int myId)
 {
-	if (strncmp(pck.name, "GM", 2) == 0)
+	if (strncmp(pck->name, "GM", 2) == 0)
 	{
-		strncpy_s(gClients[myId]->Info.name, pck.name, strlen(pck.name));
+		strncpy_s(gClients[myId]->Info.name, pck->name, strlen(pck->name));
 		gClients[myId]->Info.exp = 100;
 		gClients[myId]->Info.hp = 1000;
 		gClients[myId]->Info.level = 1000;
@@ -444,7 +441,7 @@ void IOCPServer::ProcessLoginPacket(cs_packet_login& pck, int myId)
 		gClients[myId]->AttackPower = 1000;
 	}
 	else {
-		auto p = mDBHandler.ConnectWithID(pck.name);
+		auto p = mDBHandler.ConnectWithID(pck->name);
 		if (p.first != 1) {
 			SendLoginFailPacket(myId, p.first);
 			gClients[myId]->Disconnect();
@@ -605,7 +602,7 @@ void IOCPServer::SendLoginOkPacket(int id)
 	ok_packet.hp = gClients[id]->Info.hp;
 	ok_packet.maxhp = gClients[id]->Info.max_hp;
 	ok_packet.exp = gClients[id]->Info.exp;
-	gClients[id]->SendMsg(reinterpret_cast<char*>(&ok_packet), sizeof(ok_packet));
+	gClients[id]->SendMsg(reinterpret_cast<std::byte*>(&ok_packet), sizeof(ok_packet));
 }
 
 void IOCPServer::SendLoginFailPacket(int id, char reason)
@@ -614,7 +611,7 @@ void IOCPServer::SendLoginFailPacket(int id, char reason)
 	fail_packet.size = sizeof(sc_packet_login_fail);
 	fail_packet.type = SC_PACKET_LOGIN_FAIL;
 	fail_packet.reason = reason;
-	gClients[id]->SendMsg(reinterpret_cast<char*>(&fail_packet), sizeof(fail_packet));
+	gClients[id]->SendMsg(reinterpret_cast<std::byte*>(&fail_packet), sizeof(fail_packet));
 }
 
 void IOCPServer::SendPutObjectPacket(int sender, int target)
@@ -630,7 +627,7 @@ void IOCPServer::SendPutObjectPacket(int sender, int target)
 		put_packet.object_type = 1;
 	else
 		put_packet.object_type = 0;
-	gClients[sender]->SendMsg(reinterpret_cast<char*>(&put_packet), sizeof(put_packet));
+	gClients[sender]->SendMsg(reinterpret_cast<std::byte*>(&put_packet), sizeof(put_packet));
 }
 
 void IOCPServer::SendMovePacket(int sender, int target)
@@ -642,7 +639,7 @@ void IOCPServer::SendMovePacket(int sender, int target)
 	move_packet.x = gClients[target]->Info.x;
 	move_packet.y = gClients[target]->Info.y;
 	move_packet.move_time = gClients[target]->LastMoveTime;
-	gClients[sender]->SendMsg(reinterpret_cast<char*>(&move_packet), sizeof(move_packet));
+	gClients[sender]->SendMsg(reinterpret_cast<std::byte*>(&move_packet), sizeof(move_packet));
 }
 
 void IOCPServer::SendRemovePacket(int sender, int target)
@@ -651,7 +648,7 @@ void IOCPServer::SendRemovePacket(int sender, int target)
 	remove_packet.id = target;
 	remove_packet.size = sizeof(sc_packet_remove_object);
 	remove_packet.type = SC_PACKET_REMOVE_OBJECT;
-	gClients[sender]->SendMsg(reinterpret_cast<char*>(&remove_packet), sizeof(remove_packet));
+	gClients[sender]->SendMsg(reinterpret_cast<std::byte*>(&remove_packet), sizeof(remove_packet));
 }
 
 void IOCPServer::SendStatusChangePacket(int sender)
@@ -663,7 +660,7 @@ void IOCPServer::SendStatusChangePacket(int sender)
 	status_packet.hp = gClients[sender]->Info.hp;
 	status_packet.maxhp = gClients[sender]->Info.max_hp;
 	status_packet.exp = gClients[sender]->Info.exp;
-	gClients[sender]->SendMsg(reinterpret_cast<char*>(&status_packet), sizeof(status_packet));
+	gClients[sender]->SendMsg(reinterpret_cast<std::byte*>(&status_packet), sizeof(status_packet));
 }
 
 void IOCPServer::SendBattleResultPacket(int sender, int target, int val, char type)
@@ -674,7 +671,7 @@ void IOCPServer::SendBattleResultPacket(int sender, int target, int val, char ty
 	result_packet.result_type = type;
 	result_packet.target = target;
 	result_packet.value = val;
-	gClients[sender]->SendMsg(reinterpret_cast<char*>(&result_packet), sizeof(result_packet));
+	gClients[sender]->SendMsg(reinterpret_cast<std::byte*>(&result_packet), sizeof(result_packet));
 }
 
 void IOCPServer::SendChatPacket(int sender, int target, char* msg)
@@ -684,7 +681,7 @@ void IOCPServer::SendChatPacket(int sender, int target, char* msg)
 	chat_packet.size = sizeof(sc_packet_chat);
 	chat_packet.type = SC_PACKET_CHAT;
 	strcpy_s(chat_packet.message, msg);
-	gClients[sender]->SendMsg(reinterpret_cast<char*>(&chat_packet), sizeof(chat_packet));
+	gClients[sender]->SendMsg(reinterpret_cast<std::byte*>(&chat_packet), sizeof(chat_packet));
 }
 
 bool IOCPServer::IsNPC(int id)

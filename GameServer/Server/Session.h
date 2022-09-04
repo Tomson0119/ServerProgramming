@@ -30,7 +30,7 @@ public:
 	bool FindAndEraseViewID(int id);
 	void EraseViewID(int id);
 
-	void SendMsg(char* msg, int bytes);
+	void SendMsg(std::byte* msg, int bytes);
 	void RecvMsg();
 
 	bool IsSame(int x, int y);

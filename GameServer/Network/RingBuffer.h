@@ -2,28 +2,62 @@
 
 #include "Protocol.h"
 
-class RingBuffer
+//class RingBuffer
+//{
+//public:
+//	RingBuffer();
+//	~RingBuffer();
+//
+//	void Clear();
+//
+//	void Push(uchar* msg, int size);
+//	void Pop(uchar* msg, int size);
+//
+//	bool IsEmpty();
+//	bool IsFull();
+//
+//	char GetMsgType();
+//	uchar GetTotalMsgSize();
+//	uchar PeekNextPacketSize();
+//
+//	uchar m_buffer[MaxBufferSize];
+//
+//private:
+//	int m_readIndex;
+//	int m_writeIndex;
+//	int m_remainSize;
+//};
+
+class BufferQueue
 {
 public:
-	RingBuffer();
-	~RingBuffer();
+	BufferQueue();
+	~BufferQueue();
 
 	void Clear();
 
-	void Push(uchar* msg, int size);
-	void Pop(uchar* msg, int size);
+	// For Send buffer
+	void Push(std::byte* msg, int size);
 
-	bool IsEmpty();
-	bool IsFull();
+	// For Recv buffer
+	void ShiftWritePtr(int offset);
 
-	char GetMsgType();
-	uchar GetTotalMsgSize();
-	uchar PeekNextPacketSize();
+	int GetLeftBufLen() const { return (MaxBufferSize - mWriteIndex); }
+	int GetFilledBufLen() const { return (MaxBufferSize - mRemainSize); }
 
-	uchar m_buffer[MaxBufferSize];
+	bool Readable();
+	bool Empty() const { return (mReadIndex == mWriteIndex && mRemainSize > 0); }
+
+	uint16_t PeekNextPacketSize();
+
+	std::byte* BufStartPtr() { return mBuffer; }
+	std::byte* BufWritePtr() { return mBuffer + mWriteIndex; }
+	std::byte* BufReadPtr();
 
 private:
-	int m_readIndex;
-	int m_writeIndex;
-	int m_remainSize;
+	int mReadIndex;
+	int mWriteIndex;
+	int mRemainSize;
+
+	std::byte mBuffer[MaxBufferSize];
 };

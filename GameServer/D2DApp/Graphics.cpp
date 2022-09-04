@@ -4,8 +4,9 @@
 #include "BitmapLoader.h"
 #include "Shape.h"
 
-using namespace std;
+#include <sstream>
 
+using namespace std;
 
 GraphicScene::GraphicScene()
 	: mCameraMatrix(D2D1::Matrix3x2F::Identity()),

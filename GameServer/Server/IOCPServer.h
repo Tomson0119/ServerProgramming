@@ -15,12 +15,9 @@ public:
 	void Disconnect(int id);
 	void AcceptNewClient(int id, SOCKET sck);
 
-	void ProcessPackets(int id, RingBuffer& msgQueue);	
-	void ProcessLoginPacket(cs_packet_login& pck, int myId);
+	void ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes);	
+	void ProcessLoginPacket(cs_packet_login* pck, int myId);
 	void ProcessAttackPacket(int id, const std::unordered_set<int>& viewlist);
-
-	void SendNewPlayerInfoToNearPlayers(int target);
-	void SendNearPlayersInfoToNewPlayer(int sender);
 
 	void HandlePlayersInSight(
 		const std::unordered_set<int>& sights,
@@ -29,6 +26,9 @@ public:
 		const std::unordered_set<int>& sights,
 		const std::unordered_set<int>& viewlist, int myId);
 
+private:
+	void SendNewPlayerInfoToNearPlayers(int target);
+	void SendNearPlayersInfoToNewPlayer(int sender);
 	void SendLoginOkPacket(int id);
 	void SendLoginFailPacket(int id, char reason);
 	void SendPutObjectPacket(int sender, int target);
@@ -36,12 +36,14 @@ public:
 	void SendRemovePacket(int sender, int target);
 	void SendStatusChangePacket(int sender);
 	void SendBattleResultPacket(int sender, int target, int val, char type);
+
 	static void SendChatPacket(int sender, int target, char* msg);
 
+public:
 	bool IsNPC(int id);
 	bool IsNear(int a_id, int b_id);
 
-	void HandleCompletionInfoByOperation(WSAOVERLAPPEDEX* over, int id, int bytes);
+	void HandleCompletionInfo(WSAOVERLAPPEDEX* over, int id, int bytes);
 	void MoveNPC(int id, int direction);
 	void HandleDeadNPC(int id);
 	void HandleRevivedPlayer(int id);
@@ -58,6 +60,7 @@ public:
 
 	int GetAvailableID();
 
+private:
 	static int API_AddTimer(lua_State* ls);
 	static int API_SendMessage(lua_State* ls);
 	static int API_get_x(lua_State* ls);

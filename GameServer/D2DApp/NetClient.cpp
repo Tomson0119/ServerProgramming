@@ -29,7 +29,7 @@ void NetClient::Start(const std::string& name)
 	mUsername = name;
 
 	mIOCP.RegisterDevice(mSocket, 0);
-	mSocketThread = std::thread{ NetClient::Update, std::ref(*this) };
+	mSocketThread = std::thread{ NetClient::NetworkThreadFunc, std::ref(*this) };
 	RecvMsg();
 	SendLoginPacket(name.c_str());
 }
@@ -40,7 +40,7 @@ void NetClient::SendLoginPacket(const char* name)
 	login_packet.size = sizeof(cs_packet_login);
 	login_packet.type = CS_PACKET_LOGIN;
 	strncpy_s(login_packet.name, name, strlen(name));
-	SendMsg(reinterpret_cast<char*>(&login_packet), login_packet.size);
+	SendMsg(reinterpret_cast<std::byte*>(&login_packet), login_packet.size);
 }
 
 void NetClient::OnProcessKeyInput(char input)
@@ -74,7 +74,7 @@ void NetClient::SendMovePacket(char input)
 		break;
 	}
 	move_packet.direction = dir;
-	SendMsg(reinterpret_cast<char*>(&move_packet), move_packet.size);
+	SendMsg(reinterpret_cast<std::byte*>(&move_packet), move_packet.size);
 }
 
 void NetClient::SendAttackPacket()
@@ -82,7 +82,7 @@ void NetClient::SendAttackPacket()
 	cs_packet_attack attack_packet{};
 	attack_packet.size = sizeof(cs_packet_attack);
 	attack_packet.type = CS_PACKET_ATTACK;
-	SendMsg(reinterpret_cast<char*>(&attack_packet), attack_packet.size);
+	SendMsg(reinterpret_cast<std::byte*>(&attack_packet), attack_packet.size);
 }
 
 void NetClient::SendChatPacket(const char* msg)
@@ -91,7 +91,7 @@ void NetClient::SendChatPacket(const char* msg)
 	chat_packet.size = sizeof(cs_packet_chat);
 	chat_packet.type = CS_PACKET_CHAT;
 	strncpy_s(chat_packet.message, msg, strlen(msg));
-	SendMsg(reinterpret_cast<char*>(&chat_packet), chat_packet.size);
+	SendMsg(reinterpret_cast<std::byte*>(&chat_packet), chat_packet.size);
 }
 
 void NetClient::Disconnect()
@@ -100,7 +100,7 @@ void NetClient::Disconnect()
 	mIOCP.PostToCompletionQueue(nullptr, 0);
 }
 
-void NetClient::Update(NetClient& client)
+void NetClient::NetworkThreadFunc(NetClient& client)
 {
 	try {
 		if (FAILED(CoInitializeEx(NULL, COINIT_MULTITHREADED)))
@@ -113,6 +113,7 @@ void NetClient::Update(NetClient& client)
 			
 			if (over_ex == nullptr)
 				break;
+
 			if (info.success == FALSE)
 			{
 				if (over_ex->Operation == OP::SEND)
@@ -120,21 +121,8 @@ void NetClient::Update(NetClient& client)
 				break;
 			}
 
-			switch (over_ex->Operation)
-			{
-			case OP::RECV:
-			{
-				client.mMsgQueue.Push(over_ex->NetBuffer, info.bytes);
-				client.ProcessPackets();
-				client.RecvMsg();
-				break;
-			}
-			case OP::SEND:
-				if (info.bytes != over_ex->WSABuffer.len)
-					client.Disconnect();
-				delete over_ex;
-				break;
-			}
+			client.HandleCompletionInfo(over_ex, info.bytes);
+			
 		}
 	}
 	catch (std::exception& ex)
@@ -144,7 +132,7 @@ void NetClient::Update(NetClient& client)
 	CoUninitialize();
 }
 
-void NetClient::SendMsg(char* msg, int bytes)
+void NetClient::SendMsg(std::byte* msg, int bytes)
 {
 	WSAOVERLAPPEDEX* send_over = new WSAOVERLAPPEDEX(OP::SEND, msg, bytes);
 	Send(*send_over);
@@ -156,27 +144,51 @@ void NetClient::RecvMsg()
 	Recv(mRecvOverlapped);
 }
 
-void NetClient::ProcessPackets()
+void NetClient::HandleCompletionInfo(WSAOVERLAPPEDEX* over, int bytes)
 {
-	while (!mMsgQueue.IsEmpty())
+	switch (over->Operation)
 	{
-		char type = mMsgQueue.GetMsgType();
+	case OP::RECV:
+	{
+		if (bytes == 0)
+		{
+			Disconnect();
+			break;
+		}
+		over->NetBuffer.ShiftWritePtr(bytes);
+		ProcessPackets(over, bytes);
+		RecvMsg();
+		break;
+	}
+	case OP::SEND:
+		if (bytes != over->WSABuffer.len)
+			Disconnect();
+		delete over;
+		break;
+	}
+}
+
+void NetClient::ProcessPackets(WSAOVERLAPPEDEX* over, int bytes)
+{
+	while (over->NetBuffer.Readable())
+	{
+		std::byte* packet = over->NetBuffer.BufReadPtr();
+		unsigned char type = static_cast<unsigned char>(GetPacketType(packet));
+
 		switch (type)
 		{
 		case SC_PACKET_LOGIN_OK:
 		{
-			sc_packet_login_ok login_packet{};
-			mMsgQueue.Pop(reinterpret_cast<uchar*>(&login_packet), sizeof(sc_packet_login_ok));
-			mScene->InitializePlayer(login_packet, mUsername.c_str());
+			sc_packet_login_ok* login_packet = reinterpret_cast<sc_packet_login_ok*>(packet);
+			mScene->InitializePlayer(*login_packet, mUsername.c_str());
 			break;
 		}
 		case SC_PACKET_LOGIN_FAIL:
 		{
-			sc_packet_login_fail fail_packet{};
-			mMsgQueue.Pop(reinterpret_cast<uchar*>(&fail_packet), sizeof(sc_packet_login_fail));
+			sc_packet_login_fail* fail_packet = reinterpret_cast<sc_packet_login_fail*>(packet);
 			std::wstring str = L"Login failed: ";
 			
-			switch (fail_packet.reason)
+			switch (fail_packet->reason)
 			{
 			case -1:
 				str += L"일치하는 ID가 존재하지 않습니다.";
@@ -196,50 +208,44 @@ void NetClient::ProcessPackets()
 		}
 		case SC_PACKET_MOVE:
 		{
-			sc_packet_move move_pck{};
-			mMsgQueue.Pop(reinterpret_cast<uchar*>(&move_pck), sizeof(sc_packet_move));
-			mScene->UpdatePlayerPosition(move_pck.id, move_pck.x, move_pck.y);
+			sc_packet_move* move_pck = reinterpret_cast<sc_packet_move*>(packet);
+			mScene->UpdatePlayerPosition(move_pck->id, move_pck->x, move_pck->y);
 			break;
 		}
 		case SC_PACKET_PUT_OBJECT:
 		{
-			sc_packet_put_object put_pck{};
-			mMsgQueue.Pop(reinterpret_cast<uchar*>(&put_pck), sizeof(sc_packet_put_object));
-			mScene->CreateNewObject(put_pck.id, put_pck.object_type, put_pck.name, put_pck.x, put_pck.y);
+			sc_packet_put_object* put_pck = reinterpret_cast<sc_packet_put_object*>(packet);
+			mScene->CreateNewObject(put_pck->id, put_pck->object_type, put_pck->name, put_pck->x, put_pck->y);
 			break;
 		}
 		case SC_PACKET_REMOVE_OBJECT:
 		{
-			sc_packet_remove_object remove_pck{};
-			mMsgQueue.Pop(reinterpret_cast<uchar*>(&remove_pck), sizeof(sc_packet_remove_object));
-			mScene->EraseObject(remove_pck.id);
+			sc_packet_remove_object* remove_pck = reinterpret_cast<sc_packet_remove_object*>(packet);
+			mScene->EraseObject(remove_pck->id);
 			break;
 		}
 		case SC_PACKET_CHAT:
 		{
-			sc_packet_chat chat_pck{};
-			mMsgQueue.Pop(reinterpret_cast<uchar*>(&chat_pck), sizeof(sc_packet_chat));
-			mScene->UpdatePlayerChat(chat_pck.id, chat_pck.message);
-			std::wstring player_name = mScene->GetPlayerName(chat_pck.id);
-			mChatWin->AppendMessage(player_name, CharToWString(chat_pck.message));
+			sc_packet_chat* chat_pck = reinterpret_cast<sc_packet_chat*>(packet);
+			mScene->UpdatePlayerChat(chat_pck->id, chat_pck->message);
+			std::wstring player_name = mScene->GetPlayerName(chat_pck->id);
+			mChatWin->AppendMessage(player_name, CharToWString(chat_pck->message));
 			break;
 		}
 		case SC_PACKET_BATTLE_RESULT:
 		{
-			sc_packet_battle_result battle_pck{};
-			mMsgQueue.Pop(reinterpret_cast<uchar*>(&battle_pck), sizeof(sc_packet_battle_result));
-			if (battle_pck.result_type != -1) {
-				std::wstring target_name = mScene->GetPlayerName(battle_pck.target);
-				mLogWin->AppendLog(target_name, battle_pck.value, battle_pck.result_type);
+			sc_packet_battle_result* battle_pck = reinterpret_cast<sc_packet_battle_result*>(packet);
+			if (battle_pck->result_type != -1) {
+				std::wstring target_name = mScene->GetPlayerName(battle_pck->target);
+				mLogWin->AppendLog(target_name, battle_pck->value, battle_pck->result_type);
 			}
 			else mScene->CreateAttackArea();
 			break;
 		}
 		case SC_PACKET_STATUS_CHANGE:
 		{
-			sc_packet_status_change status_pck{};
-			mMsgQueue.Pop(reinterpret_cast<uchar*>(&status_pck), sizeof(sc_packet_status_change));
-			mScene->UpdatePlayerStatus(status_pck);
+			sc_packet_status_change* status_pck = reinterpret_cast<sc_packet_status_change*>(packet);
+			mScene->UpdatePlayerStatus(*status_pck);
 			break;
 		}
 		default:
