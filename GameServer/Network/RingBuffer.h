@@ -48,7 +48,7 @@ public:
 	bool Readable();
 	bool Empty() const { return (mReadIndex == mWriteIndex && mRemainSize > 0); }
 
-	uint16_t PeekNextPacketSize();
+	char PeekNextPacketSize();
 
 	std::byte* BufStartPtr() { return mBuffer; }
 	std::byte* BufWritePtr() { return mBuffer + mWriteIndex; }

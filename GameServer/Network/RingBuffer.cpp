@@ -158,15 +158,15 @@ void BufferQueue::ShiftWritePtr(int offset)
 
 bool BufferQueue::Readable()
 {
-	if (GetFilledBufLen() >= sizeof(uint16_t))
+	if (GetFilledBufLen() >= sizeof(char))
 		return (Empty() == false && PeekNextPacketSize() <= GetFilledBufLen());
 	else
 		return false;
 }
 
-uint16_t BufferQueue::PeekNextPacketSize()
+char BufferQueue::PeekNextPacketSize()
 {
-	return *reinterpret_cast<uint16_t*>(mBuffer + mReadIndex);
+	return *reinterpret_cast<char*>(mBuffer + mReadIndex);
 }
 
 std::byte* BufferQueue::BufReadPtr()
