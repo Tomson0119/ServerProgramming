@@ -52,7 +52,7 @@ bool D2DApp::InitNetwork()
 #endif
 	if (success == false) return success;
 
-	std::string user_name = "pepsi90";
+	std::string user_name = "GM";
 #ifdef QUERY_ID
 	if (!mQueryWindow->InitWindow(L"IDQueryWindow")) return false;
 	mQueryWindow->SetLabel(L"Enter user name");

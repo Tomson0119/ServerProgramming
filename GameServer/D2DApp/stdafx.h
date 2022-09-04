@@ -35,7 +35,7 @@
 using Microsoft::WRL::ComPtr;
 using D2D1::ColorF;
 
-//#define LOCAL_ADDRESS
+#define LOCAL_ADDRESS
 #define QUERY_ID
 
 struct POINT_INT

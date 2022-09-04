@@ -36,6 +36,7 @@ void NetClient::Start(const std::string& name)
 
 void NetClient::SendLoginPacket(const char* name)
 {
+	OutputDebugString(L"Send login packet.\n");
 	cs_packet_login login_packet{};
 	login_packet.size = sizeof(cs_packet_login);
 	login_packet.type = CS_PACKET_LOGIN;
@@ -121,8 +122,7 @@ void NetClient::NetworkThreadFunc(NetClient& client)
 				break;
 			}
 
-			client.HandleCompletionInfo(over_ex, info.bytes);
-			
+			client.HandleCompletionInfo(over_ex, info.bytes);			
 		}
 	}
 	catch (std::exception& ex)
@@ -161,10 +161,12 @@ void NetClient::HandleCompletionInfo(WSAOVERLAPPEDEX* over, int bytes)
 		break;
 	}
 	case OP::SEND:
+	{
 		if (bytes != over->WSABuffer.len)
 			Disconnect();
 		delete over;
 		break;
+	}
 	}
 }
 
