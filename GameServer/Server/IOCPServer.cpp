@@ -3,7 +3,7 @@
 
 std::array<std::shared_ptr<Session>, MAX_USER + MAX_NPC> IOCPServer::gClients;
 std::array<std::array<std::unordered_set<int>, SECTOR_WIDTH>, SECTOR_HEIGHT> IOCPServer::gSectors;
-concurrency::concurrent_priority_queue<TimerEvent> IOCPServer::gTimerQueue;
+Timer IOCPServer::gTimer;
 
 IOCPServer::IOCPServer(const EndPoint& ep)
 	: mLoop(true)
@@ -55,11 +55,12 @@ void IOCPServer::Run()
 
 	for (int i = 0; i < MaxThreads; i++)
 		mThreads.emplace_back(NetworkThreadFunc, std::ref(*this));
-	mTimerThread = std::thread{ TimerThreadFunc, std::ref(*this) };
+	/*mTimerThread = std::thread{ TimerThreadFunc, std::ref(*this) };*/
+	gTimer.Start(this);
 
 	for (std::thread& thrd : mThreads)
 		thrd.join();
-	mTimerThread.join();
+	//mTimerThread.join();
 }
 
 void IOCPServer::NetworkThreadFunc(IOCPServer& server)
@@ -222,6 +223,7 @@ void IOCPServer::HandleDeadNPC(int id)
 
 void IOCPServer::HandleRevivedPlayer(int id)
 {
+	gClients[id]->Revive();
 	for (int i = 0; i < NPC_ID_START; i++)
 	{
 		if (IsNear(id, gClients[i]->ID) == false)
@@ -230,50 +232,6 @@ void IOCPServer::HandleRevivedPlayer(int id)
 			continue;
 		gClients[i]->InsertViewID(id);
 		SendPutObjectPacket(i, id);
-	}
-}
-
-void IOCPServer::TimerThreadFunc(IOCPServer& server)
-{
-	try {
-		while (server.mLoop)
-		{
-			while (gTimerQueue.empty() == false)
-			{
-				TimerEvent evnt;
-				gTimerQueue.try_pop(evnt);
-				if (evnt.StartTime <= std::chrono::system_clock::now())
-				{
-					switch (evnt.EvntType)
-					{
-					case EventType::NPC_MOVE:
-					{
-						WSAOVERLAPPEDEX* over_ex = new WSAOVERLAPPEDEX(OP::NPC_MOVE);
-						over_ex->Target = evnt.TargetID;
-						over_ex->Random_direction = evnt.Move_direction;
-						server.mIOCP.PostToCompletionQueue(over_ex, evnt.ObjectID);
-						break;
-					}
-					case EventType::NPC_REVIVE:
-					{
-						gClients[evnt.ObjectID]->Revive();
-						server.HandleRevivedPlayer(evnt.ObjectID);
-						break;
-					}
-					}
-				}
-				else
-				{
-					gTimerQueue.push(evnt);
-					break;
-				}
-			}
-			std::this_thread::sleep_for(10ms);
-		}
-	}
-	catch (std::exception& ex)
-	{
-		std::cout << ex.what() << std::endl;
 	}
 }
 
@@ -597,6 +555,14 @@ void IOCPServer::HandleDisappearedPlayers(
 	}
 }
 
+void IOCPServer::PostNPCMoveEvent(int objectId, int targetId, int direction)
+{
+	WSAOVERLAPPEDEX* over_ex = new WSAOVERLAPPEDEX(OP::NPC_MOVE);
+	over_ex->Target = targetId;
+	over_ex->Random_direction = direction;
+	mIOCP.PostToCompletionQueue(over_ex, objectId);
+}
+
 void IOCPServer::SendLoginOkPacket(int id)
 {
 	sc_packet_login_ok ok_packet{};
@@ -722,7 +688,7 @@ void IOCPServer::AddTimer(int obj_id, int player_id, EventType type, int directi
 	ev.EvntType = type;
 	ev.TargetID = player_id;
 	ev.Move_direction = direction;
-	gTimerQueue.push(ev);
+	gTimer.AddTimerEvent(ev);
 }
 
 void IOCPServer::ActivateNPC(int id)

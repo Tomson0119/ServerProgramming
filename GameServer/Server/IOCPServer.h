@@ -2,6 +2,7 @@
 
 #include "Session.h"
 #include "DBHandler.h"
+#include "Timer.h"
 
 class IOCPServer
 {
@@ -25,6 +26,8 @@ public:
 	void HandleDisappearedPlayers(
 		const std::unordered_set<int>& sights,
 		const std::unordered_set<int>& viewlist, int myId);
+
+	void PostNPCMoveEvent(int objectId, int targetId, int direction);
 
 private:
 	void SendNewPlayerInfoToNearPlayers(int target);
@@ -67,7 +70,6 @@ private:
 	static int API_get_y(lua_State* ls);
 
 	static void NetworkThreadFunc(IOCPServer& server);
-	static void TimerThreadFunc(IOCPServer& server);
 
 	static const int MaxThreads = 6;
 
@@ -77,13 +79,12 @@ private:
 
 	static std::array<std::shared_ptr<Session>, MAX_USER + MAX_NPC> gClients;
 	static std::array<std::array<std::unordered_set<int>, SECTOR_WIDTH>, SECTOR_HEIGHT> gSectors;
-	static concurrency::concurrent_priority_queue<TimerEvent> gTimerQueue;
 
 	std::mutex mSectorLock;
 
 	std::vector<std::thread> mThreads;
-	std::thread mTimerThread;
 	std::atomic_bool mLoop;
 
 	DBHandler mDBHandler;
+	static Timer gTimer;
 };

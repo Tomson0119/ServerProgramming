@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <queue>
 
 enum class EventType : char
 {
@@ -23,6 +24,8 @@ struct TimerEvent
 	}
 };
 
+class IOCPServer;
+
 class Timer
 {
 private:
@@ -32,16 +35,29 @@ public:
 	Timer();
 	~Timer();
 	
-	void Start();
+	void Start(IOCPServer* ptr);
 	void Tick();
 
 	float GetElapsedTime() const;
-	float GetTotalTime() const;	
+	float GetTotalTime() const;
+
+public:
+	void AddTimerEvent(const TimerEvent& event);
+	bool IsQueueEmpty();
+	
+	static void TimerThreadFunc(Timer& timer);
 
 private:
-	clock::time_point m_start;
-	clock::time_point m_prev;
-	clock::time_point m_curr;
+	clock::time_point mStart;
+	clock::time_point mPrev;
+	clock::time_point mCurr;
+	float mElapsed;
 
-	float m_elapsed;
+private:
+	IOCPServer* mServerPtr;
+
+	std::thread mTimerThread;
+	std::atomic_bool mLoop;
+	std::mutex mQueueMut;
+	std::priority_queue<TimerEvent> mTimerQueue;
 };
