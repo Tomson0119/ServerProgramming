@@ -30,7 +30,7 @@ void LogWindow::SetNetworkPtr(NetClient* net)
 
 void LogWindow::SetPosition(RECT& rect)
 {
-	SetWindowPos(mHwnd, NULL, rect.left, rect.top, 0, 0, SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
+	SetWindowPos(mHwnd, HWND_TOP, rect.left, rect.top, 0, 0, SWP_NOSIZE);
 }
 
 bool LogWindow::RegisterWindowClass(const std::wstring& classname)
