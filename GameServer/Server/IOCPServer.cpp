@@ -18,6 +18,8 @@ IOCPServer::IOCPServer(const EndPoint& ep)
 
 	mListenSck.Init();
 	mListenSck.Bind(ep);
+
+	InitNPC();
 }
 
 IOCPServer::~IOCPServer()
@@ -50,8 +52,6 @@ void IOCPServer::Run()
 
 	WSAOVERLAPPEDEX acceptEx;
 	mListenSck.AsyncAccept(acceptEx);
-
-	InitNPC();
 
 	for (int i = 0; i < MaxThreads; i++)
 		mThreads.emplace_back(NetworkThreadFunc, std::ref(*this));
@@ -323,6 +323,12 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 		std::byte* packet = over->NetBuffer.BufReadPtr();
 		unsigned char type = static_cast<unsigned char>(GetPacketType(packet));
 
+		if (packet == nullptr)
+		{
+			over->NetBuffer.Clear();
+			break;
+		}
+
 		switch (type)
 		{
 		case CS_PACKET_LOGIN:
@@ -422,6 +428,7 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 		}
 		default:
 			std::cout << "Unkown packet\n";
+			over->NetBuffer.Clear();
 			return;
 		}
 	}
