@@ -44,22 +44,18 @@ private:
 	static void SendChatPacket(int sender, int target, char* msg);
 
 public:
-	bool IsNPC(int id);
-	bool IsNear(int a_id, int b_id);
-
 	void HandleCompletionInfo(WSAOVERLAPPEDEX* over, int id, int bytes);
 	void MoveNPC(int id, int direction);
 	void HandleDeadNPC(int id);
 	void HandleRevivedPlayer(int id);
-
-	void MovePosition(short& x, short& y, char direction);
-	static void AddTimer(int obj_id, int player_id, EventType type, int direction, int duration);
+	
 	void ActivateNPC(int id);
 	void ActivatePlayerMoveEvent(int target, int player);
 
 	void InsertIntoSectorWithoutLock(int id);
 	void InsertIntoSectorWithLock(int id);
 	void EraseFromSectorWidthLock(int id);
+
 	std::pair<short, short> GetSectorIndex(int id);
 
 	int GetAvailableID();
@@ -70,6 +66,7 @@ private:
 	static int API_get_x(lua_State* ls);
 	static int API_get_y(lua_State* ls);
 
+	static void AddTimer(int obj_id, int player_id, EventType type, int direction, int duration);
 	static void NetworkThreadFunc(IOCPServer& server);
 	static void SignalHandler(int signal);
 	

@@ -33,7 +33,8 @@ IOCPServer::~IOCPServer()
 {
 	for (int i = 0; i < gClients.size(); i++)
 	{
-		if (IsNPC(i) == false && gClients[i]->GetState() != State::FREE)
+		if (Helper::IsNPC(i) == false 
+			&& gClients[i]->GetState() != State::FREE)
 		{
 			Disconnect(i);
 		}
@@ -183,18 +184,22 @@ void IOCPServer::MoveNPC(int id, int direction)
 
 	for (int i=0;i<NPC_ID_START;i++)
 	{
-		if (IsNear(id, gClients[i]->ID) == false)
+		if (Helper::IsNear(
+			gClients[id]->Info,
+			gClients[i]->Info) == false)
 			continue;
 		if (!gClients[i]->IsStateWithoutLock(State::INGAME))
 			continue;
 		old_viewlist.insert(gClients[i]->ID);
 	}
 
-	MovePosition(gClients[id]->Info.x, gClients[id]->Info.y, direction);
+	Helper::MovePosition(gClients[id]->Info.x, gClients[id]->Info.y, direction);
 
 	for (int i = 0; i < NPC_ID_START; i++)
 	{
-		if (IsNear(id, gClients[i]->ID) == false)
+		if (Helper::IsNear(
+			gClients[id]->Info,
+			gClients[i]->Info) == false)
 			continue;
 		if (!gClients[i]->IsStateWithoutLock(State::INGAME))
 			continue;
@@ -230,7 +235,9 @@ void IOCPServer::HandleDeadNPC(int id)
 {
 	for (int i = 0; i < NPC_ID_START; i++)
 	{
-		if (IsNear(id, gClients[i]->ID) == false)
+		if (Helper::IsNear(
+			gClients[id]->Info,
+			gClients[i]->Info) == false)
 			continue;
 		if (!gClients[i]->IsStateWithoutLock(State::INGAME))
 			continue;
@@ -244,7 +251,9 @@ void IOCPServer::HandleRevivedPlayer(int id)
 	gClients[id]->Revive();
 	for (int i = 0; i < NPC_ID_START; i++)
 	{
-		if (IsNear(id, gClients[i]->ID) == false)
+		if (Helper::IsNear(
+			gClients[id]->Info,
+			gClients[i]->Info) == false)
 			continue;
 		if (!gClients[i]->IsStateWithoutLock(State::INGAME))
 			continue;
@@ -263,7 +272,8 @@ void IOCPServer::Disconnect(int id)
 
 	for (int pid : viewlist)
 	{
-		if (IsNPC(pid) || !gClients[pid]->IsStateWithoutLock(State::INGAME))
+		if (Helper::IsNPC(pid) 
+			|| !gClients[pid]->IsStateWithoutLock(State::INGAME))
 			continue;
 
 		if (gClients[pid]->FindAndEraseViewID(id))
@@ -321,7 +331,7 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 			if (type == CS_PACKET_MOVE)
 			{
 				cs_packet_move* packet_move = reinterpret_cast<cs_packet_move*>(packet);
-				MovePosition(gClients[id]->Info.x, gClients[id]->Info.y, packet_move->direction);
+				Helper::MovePosition(gClients[id]->Info.x, gClients[id]->Info.y, packet_move->direction);
 				gClients[id]->LastMoveTime = packet_move->move_time;
 			}
 			else
@@ -355,7 +365,9 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 					{
 						if (!gClients[cid]->IsStateWithoutLock(State::INGAME))
 							continue;
-						if (cid == id || IsNear(cid, id) == false)
+						if (cid == id|| Helper::IsNear(
+								gClients[cid]->Info, 
+								gClients[id]->Info) == false)
 							continue;
 						nearlist.insert(cid);
 					}
@@ -383,7 +395,7 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 			SendChatPacket(id, id, chat_packet->message);
 			for (int pid : viewlist)
 			{
-				if (IsNPC(pid) == true) continue;
+				if (Helper::IsNPC(pid) == true) continue;
 				SendChatPacket(pid, id, chat_packet->message);
 			}
 			break;
@@ -454,7 +466,7 @@ void IOCPServer::ProcessAttackPacket(int id, const std::unordered_set<int>& view
 
 	for (int pid : viewlist)
 	{
-		if (IsNPC(pid) == false) continue;
+		if (Helper::IsNPC(pid) == false) continue;
 
 		for (int row = start_row; row < start_row + 3; row++)
 		{
@@ -493,9 +505,12 @@ void IOCPServer::SendNewPlayerInfoToNearPlayers(int target)
 			mSectorLock.lock();			
 			for (int cid : gSectors[row][col])
 			{
-				if (IsNPC(cid) || !gClients[cid]->IsStateWithoutLock(State::INGAME))
+				if (Helper::IsNPC(cid) 
+					|| !gClients[cid]->IsStateWithoutLock(State::INGAME))
 					continue;
-				if (cid == target || !IsNear(cid, target))
+				if (cid == target || Helper::IsNear(
+					gClients[cid]->Info,
+					gClients[target]->Info) == false)
 					continue;
 
 				gClients[cid]->InsertViewID(target);
@@ -521,7 +536,9 @@ void IOCPServer::SendNearPlayersInfoToNewPlayer(int sender)
 			{
 				if (!gClients[cid]->IsStateWithoutLock(State::INGAME))
 					continue;
-				if (cid == sender || !IsNear(cid, sender))
+				if (cid == sender || Helper::IsNear(
+					gClients[cid]->Info, 
+					gClients[sender]->Info) == false)
 					continue;
 
 				gClients[sender]->InsertViewID(cid);
@@ -545,7 +562,7 @@ void IOCPServer::HandlePlayersInSight(
 			SendPutObjectPacket(myId, pid);
 		}
 
-		if (IsNPC(pid)) continue;
+		if (Helper::IsNPC(pid)) continue;
 
 		if (gClients[pid]->FindAndInsertViewID(myId))
 			SendPutObjectPacket(pid, myId);
@@ -565,7 +582,7 @@ void IOCPServer::HandleDisappearedPlayers(
 			gClients[myId]->EraseViewID(pid);
 			SendRemovePacket(myId, pid);
 
-			if (IsNPC(pid)) continue;
+			if (Helper::IsNPC(pid)) continue;
 
 			if (gClients[pid]->FindAndEraseViewID(myId))
 				SendRemovePacket(pid, myId);
@@ -614,7 +631,7 @@ void IOCPServer::SendPutObjectPacket(int sender, int target)
 	put_packet.x = gClients[target]->Info.x;
 	put_packet.y = gClients[target]->Info.y;
 	strcpy_s(put_packet.name, gClients[target]->Info.name);
-	if (IsNPC(target))
+	if (Helper::IsNPC(target))
 		put_packet.object_type = 1;
 	else
 		put_packet.object_type = 0;
@@ -673,29 +690,6 @@ void IOCPServer::SendChatPacket(int sender, int target, char* msg)
 	chat_packet.type = SC_PACKET_CHAT;
 	strcpy_s(chat_packet.message, msg);
 	gClients[sender]->SendMsg(reinterpret_cast<std::byte*>(&chat_packet), sizeof(chat_packet));
-}
-
-bool IOCPServer::IsNPC(int id)
-{
-	return (id >= NPC_ID_START && id <= NPC_ID_END);
-}
-
-bool IOCPServer::IsNear(int a_id, int b_id)
-{
-	if (ABS(gClients[a_id]->Info.x - gClients[b_id]->Info.x) > RANGE) return false;
-	if (ABS(gClients[a_id]->Info.y - gClients[b_id]->Info.y) > RANGE) return false;
-	return true;
-}
-
-void IOCPServer::MovePosition(short& x, short& y, char direction)
-{
-	switch (direction)
-	{
-	case 0: if (y > 0) y--; break;
-	case 1: if (y < WORLD_HEIGHT - 1) y++; break;
-	case 2: if (x > 0) x--; break;
-	case 3: if (x < WORLD_WIDTH - 1) x++; break;
-	}
 }
 
 void IOCPServer::AddTimer(int obj_id, int player_id, EventType type, int direction, int duration)
