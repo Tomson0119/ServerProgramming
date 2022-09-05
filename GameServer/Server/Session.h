@@ -40,6 +40,7 @@ public:
 	bool IsStateWithoutLock(State state);
 
 	void InitState(State state) { mState = state; }
+	const State& GetState() { return mState; }
 
 	const std::unordered_set<int>& GetViewList() const { return mViewList; }
 
