@@ -30,7 +30,7 @@ const char SC_PACKET_STATUS_CHANGE = 7;
 const char SC_PACKET_BATTLE_RESULT = 8;
 
 const int MaxBufferSize = 1024;
-const int RANGE = 7;
+const int RANGE = 9;
 
 #pragma pack (push, 1)
 struct cs_packet_login {
