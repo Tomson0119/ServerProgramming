@@ -1,13 +1,20 @@
 #include "common.h"
 #include "IOCPServer.h"
 
+#include <csignal>
+
 std::array<std::shared_ptr<Session>, MAX_USER + MAX_NPC> IOCPServer::gClients;
 std::array<std::array<std::unordered_set<int>, SECTOR_WIDTH>, SECTOR_HEIGHT> IOCPServer::gSectors;
+
 Timer IOCPServer::gTimer;
+IOCP IOCPServer::gIOCP;
+
 
 IOCPServer::IOCPServer(const EndPoint& ep)
 	: mLoop(true)
 {
+	std::signal(SIGINT, SignalHandler);
+
 	if (mDBHandler.ConnectToDB(L"sql_server") == false)
 		std::cout << "failed to connect to DB\n";
 
@@ -24,6 +31,13 @@ IOCPServer::IOCPServer(const EndPoint& ep)
 
 IOCPServer::~IOCPServer()
 {
+	for (int i = 0; i < gClients.size(); i++)
+	{
+		if (IsNPC(i) == false && gClients[i]->GetState() != State::FREE)
+		{
+			Disconnect(i);
+		}
+	}
 }
 
 void IOCPServer::InitNPC()
@@ -47,7 +61,7 @@ void IOCPServer::InitNPC()
 void IOCPServer::Run()
 {
 	mListenSck.Listen();
-	mIOCP.RegisterDevice(mListenSck.mSocket, 0);
+	gIOCP.RegisterDevice(mListenSck.mSocket, 0);
 	std::cout << "Listening to clients...\n";
 
 	WSAOVERLAPPEDEX acceptEx;
@@ -66,10 +80,16 @@ void IOCPServer::NetworkThreadFunc(IOCPServer& server)
 	try {
 		while (server.mLoop)
 		{
-			CompletionInfo info = server.mIOCP.GetCompletionInfo();
+			CompletionInfo info = server.gIOCP.GetCompletionInfo();
 
 			int client_id = static_cast<int>(info.key);
 			WSAOVERLAPPEDEX* over_ex = reinterpret_cast<WSAOVERLAPPEDEX*>(info.overEx);
+
+			if (over_ex == nullptr)
+			{
+				server.mLoop = false;
+				continue;
+			}
 
 			if (info.success == FALSE)
 			{
@@ -257,7 +277,7 @@ void IOCPServer::Disconnect(int id)
 void IOCPServer::AcceptNewClient(int id, SOCKET sck)
 {
 	gClients[id]->AssignAcceptedID(id, sck);
-	mIOCP.RegisterDevice(sck, id);
+	gIOCP.RegisterDevice(sck, id);
 	gClients[id]->RecvMsg();
 }
 
@@ -558,7 +578,7 @@ void IOCPServer::PostNPCMoveEvent(int objectId, int targetId, int direction)
 	WSAOVERLAPPEDEX* over_ex = new WSAOVERLAPPEDEX(OP::NPC_MOVE);
 	over_ex->Target = targetId;
 	over_ex->Random_direction = direction;
-	mIOCP.PostToCompletionQueue(over_ex, objectId);
+	gIOCP.PostToCompletionQueue(over_ex, objectId);
 }
 
 void IOCPServer::SendLoginOkPacket(int id)
@@ -699,7 +719,7 @@ void IOCPServer::ActivatePlayerMoveEvent(int target, int player)
 {
 	WSAOVERLAPPEDEX* over_ex = new WSAOVERLAPPEDEX(OP::PLAYER_MOVE);
 	over_ex->Target = player;
-	mIOCP.PostToCompletionQueue(over_ex, target);
+	gIOCP.PostToCompletionQueue(over_ex, target);
 }
 
 std::pair<short, short> IOCPServer::GetSectorIndex(int id)
@@ -769,4 +789,16 @@ int IOCPServer::API_get_y(lua_State* L)
 	int y = gClients[user_id]->Info.y;
 	lua_pushnumber(L, y);
 	return 1;
+}
+
+void IOCPServer::SignalHandler(int signal)
+{
+	if (signal == SIGINT)
+	{
+		std::cout << "Shutting down server...\n";
+		for (int i = 0; i < MaxThreads; i++)
+		{
+			gIOCP.PostToCompletionQueue(nullptr, -1);
+		}
+	}
 }

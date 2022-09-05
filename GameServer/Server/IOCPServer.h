@@ -3,6 +3,7 @@
 #include "Session.h"
 #include "DBHandler.h"
 #include "Timer.h"
+#include "IOCP.h"
 
 class IOCPServer
 {
@@ -70,12 +71,12 @@ private:
 	static int API_get_y(lua_State* ls);
 
 	static void NetworkThreadFunc(IOCPServer& server);
-
+	static void SignalHandler(int signal);
+	
 	static const int MaxThreads = 6;
 
 private:
 	Socket mListenSck;
-	IOCP mIOCP;
 
 	static std::array<std::shared_ptr<Session>, MAX_USER + MAX_NPC> gClients;
 	static std::array<std::array<std::unordered_set<int>, SECTOR_WIDTH>, SECTOR_HEIGHT> gSectors;
@@ -86,5 +87,7 @@ private:
 	std::atomic_bool mLoop;
 
 	DBHandler mDBHandler;
+	
 	static Timer gTimer;
+	static IOCP gIOCP;
 };
