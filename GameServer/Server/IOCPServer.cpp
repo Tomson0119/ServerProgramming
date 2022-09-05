@@ -55,12 +55,10 @@ void IOCPServer::Run()
 
 	for (int i = 0; i < MaxThreads; i++)
 		mThreads.emplace_back(NetworkThreadFunc, std::ref(*this));
-	/*mTimerThread = std::thread{ TimerThreadFunc, std::ref(*this) };*/
 	gTimer.Start(this);
 
 	for (std::thread& thrd : mThreads)
 		thrd.join();
-	//mTimerThread.join();
 }
 
 void IOCPServer::NetworkThreadFunc(IOCPServer& server)
@@ -320,7 +318,7 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 				gSectors[beforeSecIdx.first][beforeSecIdx.second].erase(id);
 				gSectors[afterSecIdx.first][afterSecIdx.second].insert(id);
 				mSectorLock.unlock();
-			}			
+			}
 
 			std::unordered_set<int> nearlist;
 
