@@ -5,6 +5,8 @@
 #include "Timer.h"
 #include "IOCP.h"
 
+class SectorManager;
+
 class IOCPServer
 {
 public:
@@ -31,7 +33,7 @@ public:
 	void PostNPCMoveEvent(int objectId, int targetId, int direction);
 
 private:
-	void SendNewPlayerInfoToNearPlayers(int target);
+	void SendNearPlayersInfo(int target);
 	void SendNearPlayersInfoToNewPlayer(int sender);
 	void SendLoginOkPacket(int id);
 	void SendLoginFailPacket(int id, char reason);
@@ -52,12 +54,6 @@ public:
 	void ActivateNPC(int id);
 	void ActivatePlayerMoveEvent(int target, int player);
 
-	void InsertIntoSectorWithoutLock(int id);
-	void InsertIntoSectorWithLock(int id);
-	void EraseFromSectorWidthLock(int id);
-
-	std::pair<short, short> GetSectorIndex(int id);
-
 	int GetAvailableID();
 
 private:
@@ -75,10 +71,7 @@ private:
 private:
 	Socket mListenSck;
 
-	static std::array<std::shared_ptr<Session>, MAX_USER + MAX_NPC> gClients;
-	static std::array<std::array<std::unordered_set<int>, SECTOR_WIDTH>, SECTOR_HEIGHT> gSectors;
-
-	std::mutex mSectorLock;
+	std::unique_ptr<SectorManager> mSectorManager;
 
 	std::vector<std::thread> mThreads;
 	std::atomic_bool mLoop;
@@ -87,4 +80,6 @@ private:
 	
 	static Timer gTimer;
 	static IOCP gIOCP;
+
+	static std::array<std::shared_ptr<Session>, MAX_USER + MAX_NPC> gClients;
 };
