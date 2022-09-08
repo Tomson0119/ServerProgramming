@@ -4,7 +4,7 @@
 #include <Socket.h>
 #include <EndPoint.h>
 #include <NetException.h>
-#include <RingBuffer.h>
+#include <BufferQueue.h>
 #include <Protocol.h>
 #include <IOCP.h>
 #include <Timer.h>

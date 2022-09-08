@@ -30,7 +30,7 @@
     <ClInclude Include="EndPoint.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
-    <ClInclude Include="RingBuffer.h">
+    <ClInclude Include="BufferQueue.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="WSAOverlappedEx.h">
@@ -62,7 +62,7 @@
     <ClCompile Include="IOCP.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="RingBuffer.cpp">
+    <ClCompile Include="BufferQueue.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
   </ItemGroup>
