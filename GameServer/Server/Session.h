@@ -35,9 +35,8 @@ public:
 	void SendMsg(std::byte* msg, int bytes);
 	void RecvMsg();
 
-	bool IsSame(int x, int y);
-	bool IsStateWithLock(State state);
-	bool IsStateWithoutLock(State state);
+	bool IsSamePosition(int x, int y);
+	bool IsState(const State& state);
 
 	void InitState(State state) { mState = state; }
 	const State& GetState() { return mState; }

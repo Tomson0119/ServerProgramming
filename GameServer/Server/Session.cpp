@@ -87,12 +87,12 @@ void Session::RecvMsg()
 	Recv(mRecvOverlapped);
 }
 
-bool Session::IsSame(int x, int y)
+bool Session::IsSamePosition(int x, int y)
 {
 	return (Info.x == x && Info.y == y);
 }
 
-bool Session::IsStateWithoutLock(State state)
+bool Session::IsState(const State& state)
 {
 	return (mState == state);
 }
@@ -135,12 +135,4 @@ void Session::SetAttackDuration(std::chrono::milliseconds time)
 bool Session::IsAttackTimeOut() const
 {
 	return (mAttackedTime + mAttackDuration < std::chrono::system_clock::now());
-}
-
-bool Session::IsStateWithLock(State state)
-{
-	mStateLock.lock();
-	bool ret = (mState == state);
-	mStateLock.unlock();
-	return ret;
 }
