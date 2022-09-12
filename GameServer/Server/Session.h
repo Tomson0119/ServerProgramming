@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Socket.h"
+#include <functional>
 
 enum class State : char
 {
@@ -23,6 +24,8 @@ public:
 	virtual ~Session();
 
 	void Disconnect();
+	void InitLuaEngine(const std::string& file);
+	void RegisterLuaFunc(const std::string& funcName, lua_CFunction funcPtr);
 
 	void AssignAcceptedID(int id, SOCKET sck);
 	bool CompareAndChangeState(State target_state, State new_state);

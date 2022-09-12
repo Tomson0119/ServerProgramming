@@ -22,6 +22,32 @@ void Session::Disconnect()
 	Socket::Close();
 }
 
+void Session::InitLuaEngine(const std::string& file)
+{
+	if (ID < 0)
+	{
+		std::cout << "Cannot set npc uid: [uid is negative]\n";
+		return;
+	}
+	Lua = luaL_newstate();
+	luaL_openlibs(Lua);
+	luaL_loadfile(Lua, file.c_str());
+	lua_pcall(Lua, 0, 0, 0);
+
+	lua_getglobal(Lua, "set_uid");
+	lua_pushnumber(Lua, ID);
+	lua_pcall(Lua, 1, 0, 0);
+	lua_pop(Lua, 1);
+}
+
+void Session::RegisterLuaFunc(const std::string& funcName, lua_CFunction funcPtr)
+{
+	if (Lua)
+	{
+		lua_register(Lua, funcName.c_str(), funcPtr);
+	}
+}
+
 void Session::AssignAcceptedID(int id, SOCKET sck)
 {
 	ID = id;
