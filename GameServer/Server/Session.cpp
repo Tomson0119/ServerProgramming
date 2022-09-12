@@ -18,9 +18,7 @@ Session::~Session()
 
 void Session::Disconnect()
 {
-	mStateLock.lock();
 	mState = State::FREE;
-	mStateLock.unlock();
 	Socket::Close();
 }
 
@@ -95,6 +93,12 @@ bool Session::IsSamePosition(int x, int y)
 bool Session::IsState(const State& state)
 {
 	return (mState == state);
+}
+
+std::unordered_set<int> Session::GetViewList()
+{
+	std::unique_lock<std::mutex> lock{ ViewListLock };
+	return mViewList;
 }
 
 void Session::Revive()

@@ -41,7 +41,7 @@ public:
 	void InitState(State state) { mState = state; }
 	const State& GetState() { return mState; }
 
-	const std::unordered_set<int>& GetViewList() const { return mViewList; }
+	std::unordered_set<int> GetViewList();
 
 public:
 	void DecreaseHP(int amount) { Info.hp -= amount; }
@@ -71,7 +71,6 @@ private:
 	WSAOVERLAPPEDEX mRecvOverlapped;	
 	std::unordered_set<int> mViewList;
 
-	std::mutex mStateLock;
 	std::atomic<State> mState;
 
 	std::chrono::system_clock::time_point mAttackedTime;
