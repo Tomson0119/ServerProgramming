@@ -14,6 +14,7 @@ public:
 	std::pair<int, int> GetSectorIndex(int posx, int posy);
 	std::vector<std::pair<int,int>> GetNearSectorIndexes(int posx, int posy);
 
+	std::mutex& GetMutex() { return mSectorMut; }
 	std::unordered_set<int> GetIDsInSector(int row, int col);
 
 private:
