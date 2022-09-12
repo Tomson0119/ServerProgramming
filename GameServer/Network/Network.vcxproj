@@ -149,6 +149,8 @@
     <ClInclude Include="EndPoint.h" />
     <ClInclude Include="IOCP.h" />
     <ClInclude Include="BufferQueue.h" />
+    <ClInclude Include="MemoryPool.h" />
+    <ClInclude Include="MemoryPoolManager.h" />
     <ClInclude Include="NetException.h" />
     <ClInclude Include="Protocol.h" />
     <ClInclude Include="Socket.h" />

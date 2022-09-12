@@ -68,7 +68,7 @@ struct WSAOVERLAPPEDEX
 		}
 	}
 
-	/*void* operator new(size_t size)
+	void* operator new(size_t size)
 	{
 		if (MemoryPoolManager<WSAOVERLAPPEDEX>::GetInstance().GetPoolSize() > 0)
 		{
@@ -84,7 +84,7 @@ struct WSAOVERLAPPEDEX
 			MemoryPoolManager<WSAOVERLAPPEDEX>::GetInstance().Deallocate(ptr);
 		else
 			::operator delete(ptr);
-	}*/
+	}
 
 private:
 	std::mutex PushMut;

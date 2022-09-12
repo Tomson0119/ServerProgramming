@@ -24,6 +24,7 @@ IOCPServer::IOCPServer(const EndPoint& ep)
 	}
 
 	mSectorManager = std::make_unique<SectorManager>(SECTOR_WIDTH, SECTOR_HEIGHT);
+	MemoryPoolManager<WSAOVERLAPPEDEX>::GetInstance().Init(MaxThreads * 500);
 
 	mListenSck.Init();
 	mListenSck.Bind(ep);

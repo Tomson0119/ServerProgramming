@@ -8,6 +8,7 @@
 #include <Protocol.h>
 #include <IOCP.h>
 #include <Timer.h>
+#include <MemoryPoolManager.h>
 
 namespace Helper
 {
