@@ -268,11 +268,8 @@ void IOCPServer::HandleRevivedPlayer(int id)
 void IOCPServer::Disconnect(int id)
 {
 	std::cout << "Disconnect [" << id << "]\n";
-	
-	gClients[id]->ViewListLock.lock();
-	auto viewlist = gClients[id]->GetViewList();
-	gClients[id]->ViewListLock.unlock();
 
+	auto viewlist = gClients[id]->GetViewList();
 	for (int pid : viewlist)
 	{
 		if (Helper::IsNPC(pid) 
@@ -356,7 +353,7 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 				mSectorLock.unlock();
 			}*/
 
-			const auto& nearIds = mSectorManager->GetNearSectorIndexes(
+			auto nearIds = mSectorManager->GetNearSectorIndexes(
 				gClients[id]->Info.x, gClients[id]->Info.y);
 
 			std::unordered_set<int> nearlist;
@@ -364,7 +361,8 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 			{
 				int row = p.first;
 				int col = p.second;
-				auto idSet = mSectorManager->GetIDsInSector(row, col);
+			
+				const auto idSet = mSectorManager->GetIDsInSector(row, col);
 				for(int cid : idSet)
 				{
 					if (!gClients[cid]->IsState(State::INGAME))
@@ -377,12 +375,9 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 				}
 			}
 
-			SendMovePacket(id, id);			
+			SendMovePacket(id, id);
 
-			gClients[id]->ViewListLock.lock();
 			std::unordered_set<int> viewlist = gClients[id]->GetViewList();
-			gClients[id]->ViewListLock.unlock();
-
 			HandlePlayersInSight(nearlist, viewlist, id);
 			HandleDisappearedPlayers(nearlist, viewlist, id);
 			break;
@@ -390,12 +385,9 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 		case CS_PACKET_CHAT:
 		{
 			cs_packet_chat* chat_packet = reinterpret_cast<cs_packet_chat*>(packet);
-
-			gClients[id]->ViewListLock.lock();
-			auto viewlist = gClients[id]->GetViewList();
-			gClients[id]->ViewListLock.unlock();
-
 			SendChatPacket(id, id, chat_packet->message);
+
+			auto viewlist = gClients[id]->GetViewList();
 			for (int pid : viewlist)
 			{
 				if (Helper::IsNPC(pid) == true) continue;
@@ -407,14 +399,12 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 		{
 			cs_packet_attack* attack_packet = reinterpret_cast<cs_packet_attack*>(packet);
 			
-			if (gClients[id]->IsAttackTimeOut() == false) break;
-
-			gClients[id]->ViewListLock.lock();
-			auto viewlist = gClients[id]->GetViewList();
-			gClients[id]->ViewListLock.unlock();
-
-			gClients[id]->SetAttackDuration(1000ms);
-			ProcessAttackPacket(id, viewlist);
+			if (gClients[id]->IsAttackTimeOut())
+			{
+				gClients[id]->SetAttackDuration(1000ms);
+				auto viewlist = gClients[id]->GetViewList();
+				ProcessAttackPacket(id, viewlist);
+			}
 			break;
 		}
 		default:
@@ -496,14 +486,15 @@ void IOCPServer::ProcessAttackPacket(int id, const std::unordered_set<int>& view
 
 void IOCPServer::SendNearPlayersInfo(int target)
 {
-	const auto& nearIds = mSectorManager->GetNearSectorIndexes(
+	const auto nearIds = mSectorManager->GetNearSectorIndexes(
 		gClients[target]->Info.x, gClients[target]->Info.y);
 
 	for (const std::pair<int, int>& p : nearIds)
 	{
 		int row = p.first;
 		int col = p.second;
-		auto idSet = mSectorManager->GetIDsInSector(row, col);
+
+		const auto idSet = mSectorManager->GetIDsInSector(row, col);
 		for (int cid : idSet)
 		{
 			if (!gClients[cid]->IsState(State::INGAME))
@@ -513,11 +504,14 @@ void IOCPServer::SendNearPlayersInfo(int target)
 				gClients[target]->Info) == false)
 				continue;
 
-			gClients[cid]->InsertViewID(target);
-			SendPutObjectPacket(cid, target);
-
 			gClients[target]->InsertViewID(cid);
 			SendPutObjectPacket(target, cid);
+
+			if (Helper::IsNPC(cid) == false)
+			{
+				gClients[cid]->InsertViewID(target);
+				SendPutObjectPacket(cid, target);
+			}
 		}
 	}
 }

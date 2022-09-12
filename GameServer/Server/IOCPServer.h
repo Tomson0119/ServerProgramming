@@ -34,7 +34,6 @@ public:
 
 private:
 	void SendNearPlayersInfo(int target);
-	void SendNearPlayersInfoToNewPlayer(int sender);
 	void SendLoginOkPacket(int id);
 	void SendLoginFailPacket(int id, char reason);
 	void SendPutObjectPacket(int sender, int target);
