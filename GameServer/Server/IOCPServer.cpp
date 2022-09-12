@@ -52,11 +52,18 @@ void IOCPServer::InitNPC()
 		gClients[i]->Info.y = rand() % WORLD_HEIGHT;
 		sprintf_s(gClients[i]->Info.name, "N%d", i-NPC_ID_START+1);
 		gClients[i]->Type = ClientType::NPC;
-		gClients[i]->InitState(State::INGAME);
+		gClients[i]->InitState(State::SLEEP);
 		gClients[i]->Info.level = 5;
 		gClients[i]->Info.hp = 30;
 		gClients[i]->Info.max_hp = 30;
 		gClients[i]->AttackPower = 20;
+
+		gClients[i]->InitLuaEngine("Scripts\\npc.lua");
+		gClients[i]->RegisterLuaFunc("API_AddTimer", API_AddTimer);
+		gClients[i]->RegisterLuaFunc("API_SendMessage", API_SendMessage);
+		gClients[i]->RegisterLuaFunc("API_get_x", API_get_x);
+		gClients[i]->RegisterLuaFunc("API_get_y", API_get_y);
+
 		mSectorManager->InsertID(i, gClients[i]->Info.x, gClients[i]->Info.y);
 	}
 	std::cout << "Done Initializing NPC\n";
@@ -154,21 +161,28 @@ void IOCPServer::HandleCompletionInfo(WSAOVERLAPPEDEX* over, int id, int bytes)
 
 	case OP::NPC_MOVE:
 	{
-		/*MoveNPC(id, over->Random_direction);
+		MoveNPC(id, over->Random_direction);
 		bool keep_alive = false;
 		for (int i=0;i<NPC_ID_START;i++)
 		{
-			if (IsNear(id, gClients[i]->ID) == false)
+			if (Helper::IsNear(
+				gClients[id]->Info, 
+				gClients[i]->Info) == false)
 				continue;
 
-			if (gClients[i]->IsStateWithoutLock(State::INGAME))
+			// NPC is activated only when player is near by.
+			if (gClients[i]->IsState(State::INGAME))
 			{
 				keep_alive = true;
 				break;
 			}
 		}
-		if (keep_alive) AddTimer(id, over->Target, EventType::NPC_MOVE, rand()%4, 1000);
-		else gClients[id]->InitState(State::SLEEP);*/
+		if (keep_alive)
+		{
+			AddTimer(id, over->Target,
+				EventType::NPC_MOVE, rand() % 4, 1000);
+		}
+		else gClients[id]->InitState(State::SLEEP);
 		delete over;
 		break;
 	}
@@ -345,14 +359,6 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 			mSectorManager->MoveID(id, prevx, prevy,
 				gClients[id]->Info.x, gClients[id]->Info.y);
 
-			/*if (beforeSecIdx != afterSecIdx)
-			{
-				mSectorLock.lock();
-				gSectors[beforeSecIdx.first][beforeSecIdx.second].erase(id);
-				gSectors[afterSecIdx.first][afterSecIdx.second].insert(id);
-				mSectorLock.unlock();
-			}*/
-
 			auto nearIds = mSectorManager->GetNearSectorIndexes(
 				gClients[id]->Info.x, gClients[id]->Info.y);
 
@@ -365,12 +371,18 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 				const auto idSet = mSectorManager->GetIDsInSector(row, col);
 				for(int cid : idSet)
 				{
-					if (!gClients[cid]->IsState(State::INGAME))
+					if (gClients[cid]->IsState(State::INGAME) == false
+						&& gClients[cid]->IsState(State::SLEEP) == false)
 						continue;
+
 					if (cid == id || Helper::IsNear(
 						gClients[cid]->Info,
 						gClients[id]->Info) == false)
 						continue;
+
+					if (Helper::IsNPC(cid))
+						ActivateNPC(cid);
+
 					nearlist.insert(cid);
 				}
 			}
@@ -497,8 +509,10 @@ void IOCPServer::SendNearPlayersInfo(int target)
 		const auto idSet = mSectorManager->GetIDsInSector(row, col);
 		for (int cid : idSet)
 		{
-			if (!gClients[cid]->IsState(State::INGAME))
+			if (gClients[cid]->IsState(State::INGAME) == false
+				&& gClients[cid]->IsState(State::SLEEP) == false)
 				continue;
+
 			if (cid == target || Helper::IsNear(
 				gClients[cid]->Info,
 				gClients[target]->Info) == false)
@@ -511,6 +525,10 @@ void IOCPServer::SendNearPlayersInfo(int target)
 			{
 				gClients[cid]->InsertViewID(target);
 				SendPutObjectPacket(cid, target);
+			}
+			else
+			{
+				ActivateNPC(cid);
 			}
 		}
 	}
