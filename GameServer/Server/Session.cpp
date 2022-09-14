@@ -7,8 +7,9 @@ Session::Session()
 	: ID(-1), Info{}, Lua{},
 	  mRecvOverlapped{}, mState(State::FREE),
 	  Type(ClientType::PLAYER), 
-	  Active(false), LastMoveTime(0)
+	  Active(false), LastMoveTime(0), AttackPower(0)
 {
+	SetAttackDuration(0ms);
 }
 
 Session::~Session()
@@ -31,20 +32,43 @@ void Session::InitLuaEngine(const std::string& file)
 	}
 	Lua = luaL_newstate();
 	luaL_openlibs(Lua);
-	luaL_loadfile(Lua, file.c_str());
+	int err = luaL_loadfile(Lua, file.c_str());
+	if (err)
+	{
+		std::cout << "Lua Error: " << lua_tostring(Lua, -1) << std::endl;
+		return;
+	}
 	lua_pcall(Lua, 0, 0, 0);
 
 	lua_getglobal(Lua, "set_uid");
 	lua_pushnumber(Lua, ID);
-	lua_pcall(Lua, 1, 0, 0);
+	err = lua_pcall(Lua, 1, 0, 0);
+	if (err)
+	{
+		std::cout << "Lua Error: " << lua_tostring(Lua, -1) << std::endl;
+		return;
+	}
 	lua_pop(Lua, 1);
 }
 
 void Session::RegisterLuaFunc(const std::string& funcName, lua_CFunction funcPtr)
 {
-	if (Lua)
+	if (Lua == nullptr) return;
+	lua_register(Lua, funcName.c_str(), funcPtr);
+}
+
+void Session::ExecuteLuaFunc(const std::string& funcName, int playerId)
+{
+	if (Lua == nullptr)
+		return;
+	
+	lua_getglobal(Lua, funcName.c_str());
+	lua_pushnumber(Lua, playerId);
+	int err = lua_pcall(Lua, 1, 0, 0);
+	if (err)
 	{
-		lua_register(Lua, funcName.c_str(), funcPtr);
+		std::cout << "Lua Error: " << lua_tostring(Lua, -1) << std::endl;
+		lua_pop(Lua, 1);
 	}
 }
 
@@ -111,7 +135,7 @@ void Session::RecvMsg()
 	Recv(mRecvOverlapped);
 }
 
-bool Session::IsSamePosition(int x, int y)
+bool Session::IsSamePosition(short x, short y)
 {
 	return (Info.x == x && Info.y == y);
 }
@@ -129,7 +153,7 @@ std::unordered_set<int> Session::GetViewList()
 
 void Session::Revive()
 {
-	Info.hp = Info.max_hp;
+	Info.hp.store(Info.max_hp);
 	mState = State::INGAME;
 }
 
@@ -149,7 +173,7 @@ void Session::IncreaseLevelWithCondition()
 			Info.exp -= expNeeded;
 			Info.level += 1;
 			Info.max_hp = 150 * Info.level;
-			Info.hp = Info.max_hp;
+			Info.hp.store(Info.max_hp);
 			AttackPower = Info.level * 5;
 		}
 		else break;

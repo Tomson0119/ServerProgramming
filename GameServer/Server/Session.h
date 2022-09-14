@@ -27,6 +27,8 @@ public:
 	void InitLuaEngine(const std::string& file);
 	void RegisterLuaFunc(const std::string& funcName, lua_CFunction funcPtr);
 
+	void ExecuteLuaFunc(const std::string& funcName, int playerId);
+
 	void AssignAcceptedID(int id, SOCKET sck);
 	bool CompareAndChangeState(State target_state, State new_state);
 
@@ -38,7 +40,7 @@ public:
 	void SendMsg(std::byte* msg, int bytes);
 	void RecvMsg();
 
-	bool IsSamePosition(int x, int y);
+	bool IsSamePosition(short x, short y);
 	bool IsState(const State& state);
 
 	void InitState(State state) { mState = state; }
