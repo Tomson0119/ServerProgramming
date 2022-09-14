@@ -151,7 +151,7 @@ void Player::SetInfo(short level, short hp, short max_hp, short exp)
 {
 	mLevel = level;
 	mHP = hp;
-	mMaxHP = hp;
+	mMaxHP = max_hp;
 	mEXP = exp;
 }
 
