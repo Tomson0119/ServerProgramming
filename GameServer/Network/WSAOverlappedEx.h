@@ -23,7 +23,6 @@ struct WSAOVERLAPPEDEX
 	BufferQueue NetBuffer;
 
 	int Target;
-	int Random_direction;
 
 	WSAOVERLAPPEDEX(OP op = OP::RECV)
 		: Operation(op), WSABuffer{}

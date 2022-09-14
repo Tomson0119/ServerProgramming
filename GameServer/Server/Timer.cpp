@@ -82,10 +82,7 @@ void Timer::TimerThreadFunc(Timer& timer)
 				{
 				case EventType::NPC_MOVE:
 				{
-					timer.mServerPtr->PostNPCMoveEvent(
-						evnt.ObjectID, 
-						evnt.TargetID, 
-						evnt.Move_direction);
+					timer.mServerPtr->PostNPCMoveEvent(evnt.ObjectID, evnt.TargetID);
 					break;
 				}
 				case EventType::NPC_REVIVE:

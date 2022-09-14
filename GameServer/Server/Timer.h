@@ -13,8 +13,6 @@ struct TimerEvent
 {
 	int ObjectID;
 	int TargetID;
-
-	int Move_direction;
 	EventType EvntType;
 	std::chrono::system_clock::time_point StartTime;
 
