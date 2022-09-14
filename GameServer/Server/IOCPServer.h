@@ -5,6 +5,8 @@
 #include "Timer.h"
 #include "IOCP.h"
 
+#include <random>
+
 class SectorManager;
 
 class IOCPServer
@@ -30,7 +32,7 @@ public:
 		const std::unordered_set<int>& sights,
 		const std::unordered_set<int>& viewlist, int myId);
 
-	void PostNPCMoveEvent(int objectId, int targetId, int direction);
+	void PostNPCMoveEvent(int objectId, int targetId);
 
 private:
 	void SendNearPlayersInfo(int target);
@@ -46,22 +48,23 @@ private:
 
 public:
 	void HandleCompletionInfo(WSAOVERLAPPEDEX* over, int id, int bytes);
-	void MoveNPC(int id, int direction);
+	void MoveNPC(int id, int target);
 	void HandleDeadNPC(int id);
 	void HandleRevivedPlayer(int id);
+	void HandleNPCAttack(int npcId, int playerId);
 	
-	void ActivateNPC(int id);
+	void ActivateNPC(int npcId, int playerId);
 	void ActivatePlayerMoveEvent(int target, int player);
 
 	int GetAvailableID();
 
 private:
-	static int API_AddTimer(lua_State* ls);
+	//static int API_NPCMoveTimerEvent(lua_State* ls);
 	static int API_SendMessage(lua_State* ls);
-	static int API_get_x(lua_State* ls);
-	static int API_get_y(lua_State* ls);
+	//static int API_get_x(lua_State* ls);
+	//static int API_get_y(lua_State* ls);
 
-	static void AddTimer(int obj_id, int player_id, EventType type, int direction, int duration);
+	static void AddTimer(int obj_id, int player_id, EventType type, int duration);
 	static void NetworkThreadFunc(IOCPServer& server);
 	static void SignalHandler(int signal);
 	

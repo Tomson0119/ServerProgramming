@@ -56,13 +56,13 @@ void IOCPServer::InitNPC()
 		gClients[i]->Info.level = 5;
 		gClients[i]->Info.hp = 30;
 		gClients[i]->Info.max_hp = 30;
-		gClients[i]->AttackPower = 20;
+		gClients[i]->AttackPower = 10;
 
-		gClients[i]->InitLuaEngine("Scripts\\npc.lua");
-		gClients[i]->RegisterLuaFunc("API_AddTimer", API_AddTimer);
+		gClients[i]->InitLuaEngine("Script\\npc.lua");
+		//gClients[i]->RegisterLuaFunc("API_NPCMoveTimerEvent", API_NPCMoveTimerEvent);
 		gClients[i]->RegisterLuaFunc("API_SendMessage", API_SendMessage);
-		gClients[i]->RegisterLuaFunc("API_get_x", API_get_x);
-		gClients[i]->RegisterLuaFunc("API_get_y", API_get_y);
+		//gClients[i]->RegisterLuaFunc("API_get_x", API_get_x);
+		//gClients[i]->RegisterLuaFunc("API_get_y", API_get_y);
 
 		mSectorManager->InsertID(i, gClients[i]->Info.x, gClients[i]->Info.y);
 	}
@@ -161,7 +161,7 @@ void IOCPServer::HandleCompletionInfo(WSAOVERLAPPEDEX* over, int id, int bytes)
 
 	case OP::NPC_MOVE:
 	{
-		MoveNPC(id, over->Random_direction);
+		MoveNPC(id, over->Target);
 		bool keep_alive = false;
 		for (int i=0;i<NPC_ID_START;i++)
 		{
@@ -180,7 +180,7 @@ void IOCPServer::HandleCompletionInfo(WSAOVERLAPPEDEX* over, int id, int bytes)
 		if (keep_alive)
 		{
 			AddTimer(id, over->Target,
-				EventType::NPC_MOVE, rand() % 4, 1000);
+				EventType::NPC_MOVE, 1000);
 		}
 		else gClients[id]->InitState(State::SLEEP);
 		delete over;
@@ -194,7 +194,7 @@ void IOCPServer::HandleCompletionInfo(WSAOVERLAPPEDEX* over, int id, int bytes)
 	}
 }
 
-void IOCPServer::MoveNPC(int id, int direction)
+void IOCPServer::MoveNPC(int id, int target)
 {
 	std::unordered_set<int> old_viewlist;
 	std::unordered_set<int> new_viewlist;
@@ -210,6 +210,9 @@ void IOCPServer::MoveNPC(int id, int direction)
 		old_viewlist.insert(gClients[i]->ID);
 	}
 
+	int direction = Helper::GetDirectionToTarget(
+		gClients[id]->Info,
+		gClients[target]->Info);
 	Helper::MovePosition(gClients[id]->Info.x, gClients[id]->Info.y, direction);
 
 	for (int i = 0; i < NPC_ID_START; i++)
@@ -221,6 +224,7 @@ void IOCPServer::MoveNPC(int id, int direction)
 		if (!gClients[i]->IsState(State::INGAME))
 			continue;
 		new_viewlist.insert(gClients[i]->ID);
+		HandleNPCAttack(id, i);
 	}
 
 	// For players in sight of npc
@@ -277,6 +281,23 @@ void IOCPServer::HandleRevivedPlayer(int id)
 		gClients[i]->InsertViewID(id);
 		SendPutObjectPacket(i, id);
 	}
+}
+
+void IOCPServer::HandleNPCAttack(int npcId, int playerId)
+{
+	const PlayerInfo& playerInfo = gClients[playerId]->Info;
+	if (gClients[npcId]->IsSamePosition(playerInfo.x, playerInfo.y) == false) return;
+	if (gClients[npcId]->IsAttackTimeOut() == false) return;
+
+	gClients[npcId]->ExecuteLuaFunc("event_npc_attack", playerId);
+	gClients[npcId]->SetAttackDuration(1000ms);
+	gClients[playerId]->DecreaseHP(gClients[npcId]->AttackPower);
+	if (gClients[playerId]->IsDead())
+	{
+		gClients[playerId]->Revive();
+	}
+	SendBattleResultPacket(playerId, npcId, gClients[npcId]->AttackPower, 1);
+	SendStatusChangePacket(playerId);
 }
 
 void IOCPServer::Disconnect(int id)
@@ -381,7 +402,10 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 						continue;
 
 					if (Helper::IsNPC(cid))
-						ActivateNPC(cid);
+					{
+						ActivateNPC(cid, id);
+						HandleNPCAttack(cid, id);
+					}
 
 					nearlist.insert(cid);
 				}
@@ -480,6 +504,8 @@ void IOCPServer::ProcessAttackPacket(int id, const std::unordered_set<int>& view
 					gClients[pid]->DecreaseHP(gClients[id]->AttackPower);
 					SendBattleResultPacket(id, pid, gClients[id]->AttackPower, 0);
 
+					gClients[pid]->ExecuteLuaFunc("event_npc_hurt", id);
+
 					if (gClients[pid]->IsDead())
 					{
 						int val = gClients[id]->IncreaseEXP(gClients[pid]->Info.level);
@@ -487,7 +513,7 @@ void IOCPServer::ProcessAttackPacket(int id, const std::unordered_set<int>& view
 						SendBattleResultPacket(id, pid, val, 2);
 						HandleDeadNPC(pid);
 						gClients[pid]->InitState(State::SLEEP);
-						AddTimer(pid, id, EventType::NPC_REVIVE, -1, 3000);
+						AddTimer(pid, id, EventType::NPC_REVIVE, 3000);
 					}
 				}
 			}
@@ -528,7 +554,8 @@ void IOCPServer::SendNearPlayersInfo(int target)
 			}
 			else
 			{
-				ActivateNPC(cid);
+				ActivateNPC(cid, target);
+				HandleNPCAttack(cid, target);
 			}
 		}
 	}
@@ -575,11 +602,10 @@ void IOCPServer::HandleDisappearedPlayers(
 	}
 }
 
-void IOCPServer::PostNPCMoveEvent(int objectId, int targetId, int direction)
+void IOCPServer::PostNPCMoveEvent(int objectId, int targetId)
 {
 	WSAOVERLAPPEDEX* over_ex = new WSAOVERLAPPEDEX(OP::NPC_MOVE);
 	over_ex->Target = targetId;
-	over_ex->Random_direction = direction;
 	gIOCP.PostToCompletionQueue(over_ex, objectId);
 }
 
@@ -669,7 +695,7 @@ void IOCPServer::SendBattleResultPacket(int sender, int target, int val, char ty
 
 void IOCPServer::SendChatPacket(int sender, int target, char* msg)
 {
-	sc_packet_chat chat_packet;
+	sc_packet_chat chat_packet{};
 	chat_packet.id = target;
 	chat_packet.size = sizeof(sc_packet_chat);
 	chat_packet.type = SC_PACKET_CHAT;
@@ -677,21 +703,22 @@ void IOCPServer::SendChatPacket(int sender, int target, char* msg)
 	gClients[sender]->SendMsg(reinterpret_cast<std::byte*>(&chat_packet), sizeof(chat_packet));
 }
 
-void IOCPServer::AddTimer(int obj_id, int player_id, EventType type, int direction, int duration)
+void IOCPServer::AddTimer(int obj_id, int player_id, EventType type, int duration)
 {
 	TimerEvent ev{};
 	ev.ObjectID = obj_id;
 	ev.StartTime = std::chrono::system_clock::now() + std::chrono::milliseconds(duration);
 	ev.EvntType = type;
 	ev.TargetID = player_id;
-	ev.Move_direction = direction;
 	gTimer.AddTimerEvent(ev);
 }
 
-void IOCPServer::ActivateNPC(int id)
+void IOCPServer::ActivateNPC(int npcId, int playerId)
 {
-	if (gClients[id]->CompareAndChangeState(State::SLEEP, State::INGAME))
-		AddTimer(id, 0, EventType::NPC_MOVE, rand()%4, 1000);
+	if (gClients[npcId]->CompareAndChangeState(State::SLEEP, State::INGAME))
+	{
+		AddTimer(npcId, playerId, EventType::NPC_MOVE, 1000);
+	}
 }
 
 void IOCPServer::ActivatePlayerMoveEvent(int target, int player)
@@ -701,15 +728,14 @@ void IOCPServer::ActivatePlayerMoveEvent(int target, int player)
 	gIOCP.PostToCompletionQueue(over_ex, target);
 }
 
-int IOCPServer::API_AddTimer(lua_State* ls)
-{
-	int my_id = (int)lua_tointeger(ls, -3);
-	int player = (int)lua_tointeger(ls, -2);
-	int dir = (int)lua_tointeger(ls, -1);
-	lua_pop(ls, 4);
-	AddTimer(my_id, player, EventType::NPC_MOVE, dir, 1000);
-	return 0;
-}
+//int IOCPServer::API_NPCMoveTimerEvent(lua_State* ls)
+//{
+//	int my_id = (int)lua_tointeger(ls, -2);
+//	int player = (int)lua_tointeger(ls, -1);
+//	lua_pop(ls, 3);
+//	AddTimer(my_id, player, EventType::NPC_MOVE, 1000);
+//	return 0;
+//}
 
 int IOCPServer::API_SendMessage(lua_State* ls)
 {
@@ -721,23 +747,23 @@ int IOCPServer::API_SendMessage(lua_State* ls)
 	return 0;
 }
 
-int IOCPServer::API_get_x(lua_State* L)
-{
-	int user_id = (int)lua_tointeger(L, -1);
-	lua_pop(L, 2);
-	int x = gClients[user_id]->Info.x;
-	lua_pushnumber(L, x);
-	return 1;
-}
-
-int IOCPServer::API_get_y(lua_State* L)
-{
-	int user_id = (int)lua_tointeger(L, -1);
-	lua_pop(L, 2);
-	int y = gClients[user_id]->Info.y;
-	lua_pushnumber(L, y);
-	return 1;
-}
+//int IOCPServer::API_get_x(lua_State* L)
+//{
+//	int user_id = (int)lua_tointeger(L, -1);
+//	lua_pop(L, 2);
+//	int x = gClients[user_id]->Info.x;
+//	lua_pushnumber(L, x);
+//	return 1;
+//}
+//
+//int IOCPServer::API_get_y(lua_State* L)
+//{
+//	int user_id = (int)lua_tointeger(L, -1);
+//	lua_pop(L, 2);
+//	int y = gClients[user_id]->Info.y;
+//	lua_pushnumber(L, y);
+//	return 1;
+//}
 
 void IOCPServer::SignalHandler(int signal)
 {

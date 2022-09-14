@@ -24,7 +24,7 @@ namespace Helper
 		return true;
 	}
 
-	inline void MovePosition(short& x, short& y, char direction)
+	inline void MovePosition(std::atomic<short>& x, std::atomic<short>& y, char direction)
 	{
 		switch (direction)
 		{
@@ -33,5 +33,25 @@ namespace Helper
 		case 2: if (x > 0) x--; break;
 		case 3: if (x < WORLD_WIDTH - 1) x++; break;
 		}
+	}
+
+	inline int GetDirectionToTarget(const PlayerInfo& my_info, const PlayerInfo& target_info)
+	{
+		int abs_x = ABS(target_info.x - my_info.x);
+		int abs_y = ABS(target_info.y - my_info.y);
+		
+		if (abs_x == 0 && abs_y == 0)
+			return -1;
+
+		int direction = -1;
+		if (abs_x < abs_y)
+		{
+			direction = (target_info.y < my_info.y) ? 0 : 1;
+		}
+		else
+		{
+			direction = (target_info.x < my_info.x) ? 2 : 3;
+		}
+		return direction;
 	}
 }
