@@ -178,9 +178,11 @@ void GraphicScene::UpdatePlayerStatus(sc_packet_status_change& status)
 {
 	mMovingObjectsLock.lock();
 	if (FindMovingObjectID(mPlayerID))
+	{
 		mMovingObjects[mPlayerID]->SetInfo(
 			status.level, status.hp,
 			status.maxhp, status.exp);
+	}
 	mMovingObjectsLock.unlock();
 }
 
