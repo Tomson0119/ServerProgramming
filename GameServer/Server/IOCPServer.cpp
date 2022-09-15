@@ -24,7 +24,7 @@ IOCPServer::IOCPServer(const EndPoint& ep)
 	}
 
 	mSectorManager = std::make_unique<SectorManager>(SECTOR_WIDTH, SECTOR_HEIGHT);
-	MemoryPoolManager<WSAOVERLAPPEDEX>::GetInstance().Init(MaxThreads * 500);
+	MemoryPoolManager<WSAOVERLAPPEDEX>::GetInstance().Init(MAX_USER * MaxThreads);
 
 	mListenSck.Init();
 	mListenSck.Bind(ep);
@@ -58,8 +58,8 @@ void IOCPServer::InitNPC()
 		gClients[i]->Info.max_hp = 30;
 		gClients[i]->AttackPower = 10;
 
-		gClients[i]->InitLuaEngine("Script\\npc.lua");
-		gClients[i]->RegisterLuaFunc("API_SendMessage", API_SendMessage);
+		//gClients[i]->InitLuaEngine("Script\\npc.lua");
+		//gClients[i]->RegisterLuaFunc("API_SendMessage", API_SendMessage);
 
 		mSectorManager->InsertID(i, gClients[i]->Info.x, gClients[i]->Info.y);
 	}
@@ -318,7 +318,7 @@ void IOCPServer::HandleNPCAttack(int npcId, int playerId)
 	if (gClients[npcId]->IsSamePosition(playerInfo.x, playerInfo.y) == false) return;
 	if (gClients[npcId]->IsAttackTimeOut() == false) return;
 
-	gClients[npcId]->ExecuteLuaFunc("event_npc_attack", playerId);
+	//gClients[npcId]->ExecuteLuaFunc("event_npc_attack", playerId);
 	gClients[npcId]->SetAttackDuration(1000ms);
 	gClients[playerId]->DecreaseHP(gClients[npcId]->AttackPower);
 	if (gClients[playerId]->IsDead())
@@ -533,7 +533,7 @@ void IOCPServer::ProcessAttackPacket(int id, const std::unordered_set<int>& view
 					gClients[pid]->DecreaseHP(gClients[id]->AttackPower);
 					SendBattleResultPacket(id, pid, gClients[id]->AttackPower, 0);
 
-					gClients[pid]->ExecuteLuaFunc("event_npc_hurt", id);
+					//gClients[pid]->ExecuteLuaFunc("event_npc_hurt", id);
 
 					if (gClients[pid]->IsDead())
 					{
@@ -757,15 +757,6 @@ void IOCPServer::ActivatePlayerMoveEvent(int target, int player)
 	gIOCP.PostToCompletionQueue(over_ex, target);
 }
 
-//int IOCPServer::API_NPCMoveTimerEvent(lua_State* ls)
-//{
-//	int my_id = (int)lua_tointeger(ls, -2);
-//	int player = (int)lua_tointeger(ls, -1);
-//	lua_pop(ls, 3);
-//	AddTimer(my_id, player, EventType::NPC_MOVE, 1000);
-//	return 0;
-//}
-
 int IOCPServer::API_SendMessage(lua_State* ls)
 {
 	int my_id = (int)lua_tointeger(ls, -3);
@@ -775,24 +766,6 @@ int IOCPServer::API_SendMessage(lua_State* ls)
 	SendChatPacket(user_id, my_id, mess);
 	return 0;
 }
-
-//int IOCPServer::API_get_x(lua_State* L)
-//{
-//	int user_id = (int)lua_tointeger(L, -1);
-//	lua_pop(L, 2);
-//	int x = gClients[user_id]->Info.x;
-//	lua_pushnumber(L, x);
-//	return 1;
-//}
-//
-//int IOCPServer::API_get_y(lua_State* L)
-//{
-//	int user_id = (int)lua_tointeger(L, -1);
-//	lua_pop(L, 2);
-//	int y = gClients[user_id]->Info.y;
-//	lua_pushnumber(L, y);
-//	return 1;
-//}
 
 void IOCPServer::SignalHandler(int signal)
 {
