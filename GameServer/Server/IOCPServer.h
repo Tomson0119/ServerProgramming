@@ -50,7 +50,7 @@ public:
 	void HandleCompletionInfo(WSAOVERLAPPEDEX* over, int id, int bytes);
 	void MoveNPC(int id, int target);
 	void HandleDeadNPC(int id);
-	void HandleRevivedPlayer(int id);
+	void ReviveNPC(int id);
 	void HandleNPCAttack(int npcId, int playerId);
 	
 	void ActivateNPC(int npcId, int playerId);
@@ -59,10 +59,7 @@ public:
 	int GetAvailableID();
 
 private:
-	//static int API_NPCMoveTimerEvent(lua_State* ls);
 	static int API_SendMessage(lua_State* ls);
-	//static int API_get_x(lua_State* ls);
-	//static int API_get_y(lua_State* ls);
 
 	static void AddTimer(int obj_id, int player_id, EventType type, int duration);
 	static void NetworkThreadFunc(IOCPServer& server);

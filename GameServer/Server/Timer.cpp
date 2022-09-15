@@ -87,7 +87,7 @@ void Timer::TimerThreadFunc(Timer& timer)
 				}
 				case EventType::NPC_REVIVE:
 				{
-					timer.mServerPtr->HandleRevivedPlayer(evnt.ObjectID);
+					timer.mServerPtr->ReviveNPC(evnt.ObjectID);
 					break;
 				}}
 			}
