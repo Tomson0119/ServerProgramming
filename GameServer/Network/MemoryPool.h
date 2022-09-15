@@ -1,5 +1,6 @@
 #pragma once
 #include <concurrent_queue.h>
+#include <queue>
 
 template <typename T>
 class MemoryPool
@@ -31,11 +32,16 @@ public:
 
 	void* Alloc()
 	{
+		mQueMut.lock();
 		if (mMemAddrs.empty())
+		{
+			mQueMut.unlock();
 			return nullptr;
+		}
 
-		void* ptr = nullptr;
-		while (mMemAddrs.try_pop(ptr) == false);
+		void* ptr = mMemAddrs.front();
+		mMemAddrs.pop();
+		mQueMut.unlock();
 
 		return ptr;
 	}
@@ -46,7 +52,9 @@ public:
 		{
 			auto ptr = reinterpret_cast<void*>(p);
 			p = nullptr;
+			mQueMut.lock();
 			mMemAddrs.push(ptr);
+			mQueMut.unlock();
 		}
 	}
 
@@ -57,8 +65,11 @@ public:
 
 private:
 	T* mPool = nullptr;
-	concurrency::concurrent_queue<void*> mMemAddrs;
+	//concurrency::concurrent_queue<void*> mMemAddrs;
+
+	std::mutex mQueMut;
+	std::queue<void*> mMemAddrs;
 
 	size_t mBlockCount = 0;
-	std::atomic_size_t mPoolSize = 0;
+	size_t mPoolSize = 0;
 };
