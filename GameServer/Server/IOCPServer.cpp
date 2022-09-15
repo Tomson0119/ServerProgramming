@@ -59,10 +59,7 @@ void IOCPServer::InitNPC()
 		gClients[i]->AttackPower = 10;
 
 		gClients[i]->InitLuaEngine("Script\\npc.lua");
-		//gClients[i]->RegisterLuaFunc("API_NPCMoveTimerEvent", API_NPCMoveTimerEvent);
 		gClients[i]->RegisterLuaFunc("API_SendMessage", API_SendMessage);
-		//gClients[i]->RegisterLuaFunc("API_get_x", API_get_x);
-		//gClients[i]->RegisterLuaFunc("API_get_y", API_get_y);
 
 		mSectorManager->InsertID(i, gClients[i]->Info.x, gClients[i]->Info.y);
 	}
@@ -161,6 +158,12 @@ void IOCPServer::HandleCompletionInfo(WSAOVERLAPPEDEX* over, int id, int bytes)
 
 	case OP::NPC_MOVE:
 	{
+		if (gClients[id]->IsState(State::INGAME) == false)
+		{
+			delete over;
+			break;
+		}
+
 		MoveNPC(id, over->Target);
 		bool keep_alive = false;
 		for (int i=0;i<NPC_ID_START;i++)
@@ -196,35 +199,45 @@ void IOCPServer::HandleCompletionInfo(WSAOVERLAPPEDEX* over, int id, int bytes)
 
 void IOCPServer::MoveNPC(int id, int target)
 {
-	std::unordered_set<int> old_viewlist;
-	std::unordered_set<int> new_viewlist;
+	short prevx = gClients[id]->Info.x;
+	short prevy = gClients[id]->Info.y;
 
-	for (int i=0;i<NPC_ID_START;i++)
+	std::unordered_set<int> old_viewlist;
+	for(int playerId = 0; playerId < MAX_USER; playerId++)
 	{
+		if (gClients[playerId]->IsState(State::INGAME) == false)
+			continue;
+
 		if (Helper::IsNear(
 			gClients[id]->Info,
-			gClients[i]->Info) == false)
+			gClients[playerId]->Info) == false)
 			continue;
-		if (!gClients[i]->IsState(State::INGAME))
-			continue;
-		old_viewlist.insert(gClients[i]->ID);
+
+		old_viewlist.insert(playerId);
 	}
 
 	int direction = Helper::GetDirectionToTarget(
 		gClients[id]->Info,
 		gClients[target]->Info);
+
 	Helper::MovePosition(gClients[id]->Info.x, gClients[id]->Info.y, direction);
 
-	for (int i = 0; i < NPC_ID_START; i++)
+	mSectorManager->MoveID(id, prevx, prevy, 
+		gClients[id]->Info.x, gClients[id]->Info.y);
+
+	std::unordered_set<int> new_viewlist;
+	for(int playerId = 0; playerId < MAX_USER; playerId++)
 	{
+		if (gClients[playerId]->IsState(State::INGAME) == false)
+			continue;
+
 		if (Helper::IsNear(
 			gClients[id]->Info,
-			gClients[i]->Info) == false)
+			gClients[playerId]->Info) == false)
 			continue;
-		if (!gClients[i]->IsState(State::INGAME))
-			continue;
-		new_viewlist.insert(gClients[i]->ID);
-		HandleNPCAttack(id, i);
+
+		new_viewlist.insert(gClients[playerId]->ID);
+		HandleNPCAttack(id, playerId);
 	}
 
 	// For players in sight of npc
@@ -254,32 +267,48 @@ void IOCPServer::MoveNPC(int id, int target)
 
 void IOCPServer::HandleDeadNPC(int id)
 {
-	for (int i = 0; i < NPC_ID_START; i++)
+	for(int playerId = 0; playerId < MAX_USER; playerId++)
 	{
+		if (!gClients[playerId]->IsState(State::INGAME))
+			continue;
+
 		if (Helper::IsNear(
 			gClients[id]->Info,
-			gClients[i]->Info) == false)
+			gClients[playerId]->Info) == false)
 			continue;
-		if (!gClients[i]->IsState(State::INGAME))
-			continue;
-		gClients[i]->EraseViewID(id);
-		SendRemovePacket(i, id);
+
+		gClients[playerId]->EraseViewID(id);
+		SendRemovePacket(playerId, id);
 	}
 }
 
-void IOCPServer::HandleRevivedPlayer(int id)
+void IOCPServer::ReviveNPC(int id)
 {
 	gClients[id]->Revive();
-	for (int i = 0; i < NPC_ID_START; i++)
+
+	int target = -1;
+	for(int playerId = 0; playerId < MAX_USER; playerId++)
 	{
 		if (Helper::IsNear(
 			gClients[id]->Info,
-			gClients[i]->Info) == false)
+			gClients[playerId]->Info) == false)
 			continue;
-		if (!gClients[i]->IsState(State::INGAME))
+
+		if (!gClients[playerId]->IsState(State::INGAME))
 			continue;
-		gClients[i]->InsertViewID(id);
-		SendPutObjectPacket(i, id);
+
+		gClients[playerId]->InsertViewID(id);
+		SendPutObjectPacket(playerId, id);
+
+		if (target < 0) target = playerId;
+	}
+	if (target >= 0)
+	{
+		AddTimer(id, target, EventType::NPC_MOVE, 1000);
+	}
+	else
+	{
+		gClients[id]->InitState(State::SLEEP);
 	}
 }
 
@@ -289,7 +318,7 @@ void IOCPServer::HandleNPCAttack(int npcId, int playerId)
 	if (gClients[npcId]->IsSamePosition(playerInfo.x, playerInfo.y) == false) return;
 	if (gClients[npcId]->IsAttackTimeOut() == false) return;
 
-	//gClients[npcId]->ExecuteLuaFunc("event_npc_attack", playerId);
+	gClients[npcId]->ExecuteLuaFunc("event_npc_attack", playerId);
 	gClients[npcId]->SetAttackDuration(1000ms);
 	gClients[playerId]->DecreaseHP(gClients[npcId]->AttackPower);
 	if (gClients[playerId]->IsDead())
@@ -390,24 +419,24 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 				int col = p.second;
 			
 				const auto idSet = mSectorManager->GetIDsInSector(row, col);
-				for(int cid : idSet)
+				for(int other : idSet)
 				{
-					if (gClients[cid]->IsState(State::INGAME) == false
-						&& gClients[cid]->IsState(State::SLEEP) == false)
+					if (gClients[other]->IsState(State::INGAME) == false
+						&& gClients[other]->IsState(State::SLEEP) == false)
 						continue;
 
-					if (cid == id || Helper::IsNear(
-						gClients[cid]->Info,
+					if (other == id || Helper::IsNear(
+						gClients[other]->Info,
 						gClients[id]->Info) == false)
 						continue;
 
-					if (Helper::IsNPC(cid))
+					if (Helper::IsNPC(other))
 					{
-						ActivateNPC(cid, id);
-						HandleNPCAttack(cid, id);
+						ActivateNPC(other, id);
+						HandleNPCAttack(other, id);
 					}
 
-					nearlist.insert(cid);
+					nearlist.insert(other);
 				}
 			}
 
@@ -504,7 +533,7 @@ void IOCPServer::ProcessAttackPacket(int id, const std::unordered_set<int>& view
 					gClients[pid]->DecreaseHP(gClients[id]->AttackPower);
 					SendBattleResultPacket(id, pid, gClients[id]->AttackPower, 0);
 
-					//gClients[pid]->ExecuteLuaFunc("event_npc_hurt", id);
+					gClients[pid]->ExecuteLuaFunc("event_npc_hurt", id);
 
 					if (gClients[pid]->IsDead())
 					{
@@ -512,7 +541,7 @@ void IOCPServer::ProcessAttackPacket(int id, const std::unordered_set<int>& view
 						SendStatusChangePacket(id);
 						SendBattleResultPacket(id, pid, val, 2);
 						HandleDeadNPC(pid);
-						gClients[pid]->InitState(State::SLEEP);
+						gClients[pid]->InitState(State::DEAD);
 						AddTimer(pid, id, EventType::NPC_REVIVE, 3000);
 					}
 				}
@@ -533,29 +562,29 @@ void IOCPServer::SendNearPlayersInfo(int target)
 		int col = p.second;
 
 		const auto idSet = mSectorManager->GetIDsInSector(row, col);
-		for (int cid : idSet)
+		for (int other : idSet)
 		{
-			if (gClients[cid]->IsState(State::INGAME) == false
-				&& gClients[cid]->IsState(State::SLEEP) == false)
+			if (gClients[other]->IsState(State::INGAME) == false
+				&& gClients[other]->IsState(State::SLEEP) == false)
 				continue;
 
-			if (cid == target || Helper::IsNear(
-				gClients[cid]->Info,
+			if (other == target || Helper::IsNear(
+				gClients[other]->Info,
 				gClients[target]->Info) == false)
 				continue;
 
-			gClients[target]->InsertViewID(cid);
-			SendPutObjectPacket(target, cid);
+			gClients[target]->InsertViewID(other);
+			SendPutObjectPacket(target, other);
 
-			if (Helper::IsNPC(cid) == false)
+			if (Helper::IsNPC(other) == false)
 			{
-				gClients[cid]->InsertViewID(target);
-				SendPutObjectPacket(cid, target);
+				gClients[other]->InsertViewID(target);
+				SendPutObjectPacket(other, target);
 			}
 			else
 			{
-				ActivateNPC(cid, target);
-				HandleNPCAttack(cid, target);
+				ActivateNPC(other, target);
+				HandleNPCAttack(other, target);
 			}
 		}
 	}
