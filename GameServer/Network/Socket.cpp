@@ -80,6 +80,9 @@ int Socket::Send(WSAOVERLAPPEDEX& overlapped)
 {
 	DWORD bytes = 0;
 
+	// WSASend is not thread safe, so lock before send.
+	std::unique_lock<std::mutex> lock{ mSendMut };
+
 	if (WSASend(mSocket,
 		&overlapped.WSABuffer, 1, &bytes, 0,
 		&overlapped.Overlapped, NULL) != 0)

@@ -27,5 +27,6 @@ public:
 	int Recv(WSAOVERLAPPEDEX& overlapped);
 
 public:
+	std::mutex mSendMut;
 	SOCKET mSocket;
 };
