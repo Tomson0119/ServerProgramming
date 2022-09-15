@@ -8,7 +8,8 @@ enum class State : char
 	FREE,
 	ACCEPT,
 	INGAME,
-	SLEEP
+	SLEEP,
+	DEAD
 };
 
 enum class ClientType : char
