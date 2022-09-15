@@ -4,8 +4,8 @@ count = 0
 attack_msg = 'Take this!'
 hurt_msg = 'Ahh'
 
-function set_uid(x)
-   myid = x
+function set_uid(id)
+   myid = id
 end
 
 function event_npc_attack(player_id)
