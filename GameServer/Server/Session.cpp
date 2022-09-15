@@ -62,6 +62,7 @@ void Session::ExecuteLuaFunc(const std::string& funcName, int playerId)
 	if (Lua == nullptr)
 		return;
 	
+	std::unique_lock<std::mutex> lock{ LuaMut };
 	lua_getglobal(Lua, funcName.c_str());
 	lua_pushnumber(Lua, playerId);
 	int err = lua_pcall(Lua, 1, 0, 0);

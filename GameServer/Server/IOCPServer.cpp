@@ -289,7 +289,7 @@ void IOCPServer::HandleNPCAttack(int npcId, int playerId)
 	if (gClients[npcId]->IsSamePosition(playerInfo.x, playerInfo.y) == false) return;
 	if (gClients[npcId]->IsAttackTimeOut() == false) return;
 
-	gClients[npcId]->ExecuteLuaFunc("event_npc_attack", playerId);
+	//gClients[npcId]->ExecuteLuaFunc("event_npc_attack", playerId);
 	gClients[npcId]->SetAttackDuration(1000ms);
 	gClients[playerId]->DecreaseHP(gClients[npcId]->AttackPower);
 	if (gClients[playerId]->IsDead())
@@ -504,7 +504,7 @@ void IOCPServer::ProcessAttackPacket(int id, const std::unordered_set<int>& view
 					gClients[pid]->DecreaseHP(gClients[id]->AttackPower);
 					SendBattleResultPacket(id, pid, gClients[id]->AttackPower, 0);
 
-					gClients[pid]->ExecuteLuaFunc("event_npc_hurt", id);
+					//gClients[pid]->ExecuteLuaFunc("event_npc_hurt", id);
 
 					if (gClients[pid]->IsDead())
 					{

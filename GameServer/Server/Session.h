@@ -70,6 +70,7 @@ public:
 	std::mutex ViewListLock;
 	std::mutex MsgQueLock;
 
+	std::mutex LuaMut;
 	lua_State* Lua;
 
 private:
