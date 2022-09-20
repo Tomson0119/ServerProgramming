@@ -2,11 +2,11 @@
 #include "SectorManager.h"
 
 
-SectorManager::SectorManager(int secWidth, int secHeight)
-	: mSectorWidth{ secWidth }, mSectorHeight{ secHeight }
+SectorManager::SectorManager(int sectorWidth, int sectorHeight)
+	: mSectorWidth{ sectorWidth }, mSectorHeight{ sectorHeight }
 {
-	mSectorArray.resize(mSectorHeight, 
-		std::vector<std::unordered_set<int>>(mSectorWidth));
+	mSectorArray.resize(WORLD_HEIGHT / mSectorHeight,
+		std::vector<std::unordered_set<int>>(WORLD_WIDTH / mSectorWidth));
 }
 
 void SectorManager::InsertID(int id, int posx, int posy)

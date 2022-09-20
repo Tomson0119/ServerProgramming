@@ -3,7 +3,7 @@
 class SectorManager
 {
 public:
-	SectorManager(int secWidth, int secHeight);
+	SectorManager(int sectorWidth, int sectorHeight);
 	virtual ~SectorManager() = default;
 
 public:
