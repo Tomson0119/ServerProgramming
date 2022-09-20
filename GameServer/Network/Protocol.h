@@ -11,8 +11,8 @@ const int  MAX_NPC = 200000;
 constexpr int NPC_ID_START = MAX_USER;
 constexpr int NPC_ID_END = MAX_USER + MAX_NPC - 1;
 
-constexpr int SECTOR_WIDTH = WORLD_WIDTH / 10;
-constexpr int SECTOR_HEIGHT = WORLD_HEIGHT / 10;
+constexpr int SECTOR_WIDTH = WORLD_WIDTH / 100;
+constexpr int SECTOR_HEIGHT = WORLD_HEIGHT / 100;
 
 const char CS_PACKET_LOGIN = 1;
 const char CS_PACKET_MOVE = 2;
@@ -30,7 +30,7 @@ const char SC_PACKET_STATUS_CHANGE = 7;
 const char SC_PACKET_BATTLE_RESULT = 8;
 
 const int MaxBufferSize = 1024;
-const int RANGE = 9;
+const int RANGE = 10;
 
 #pragma pack (push, 1)
 struct cs_packet_login {
