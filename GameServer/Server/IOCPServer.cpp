@@ -58,8 +58,8 @@ void IOCPServer::InitNPC()
 		gClients[i]->Info.max_hp = 30;
 		gClients[i]->AttackPower = 10;
 
-		//gClients[i]->InitLuaEngine("Script\\npc.lua");
-		//gClients[i]->RegisterLuaFunc("API_SendMessage", API_SendMessage);
+		gClients[i]->InitLuaEngine("Script\\npc.lua");
+		gClients[i]->RegisterLuaFunc("API_SendMessage", API_SendMessage);
 
 		mSectorManager->InsertID(i, gClients[i]->Info.x, gClients[i]->Info.y);
 	}
@@ -318,7 +318,7 @@ void IOCPServer::HandleNPCAttack(int npcId, int playerId)
 	if (gClients[npcId]->IsSamePosition(playerInfo.x, playerInfo.y) == false) return;
 	if (gClients[npcId]->IsAttackTimeOut() == false) return;
 
-	//gClients[npcId]->ExecuteLuaFunc("event_npc_attack", playerId);
+	gClients[npcId]->ExecuteLuaFunc("event_npc_attack", playerId);
 	gClients[npcId]->SetAttackDuration(1000ms);
 	gClients[playerId]->DecreaseHP(gClients[npcId]->AttackPower);
 	if (gClients[playerId]->IsDead())
@@ -419,7 +419,7 @@ void IOCPServer::ProcessPackets(WSAOVERLAPPEDEX* over, int id, int bytes)
 				int col = p.second;
 			
 				const auto idSet = mSectorManager->GetIDsInSector(row, col);
-				for(int other : idSet)
+				for (int other : idSet)
 				{
 					if (gClients[other]->IsState(State::INGAME) == false
 						&& gClients[other]->IsState(State::SLEEP) == false)
@@ -533,7 +533,7 @@ void IOCPServer::ProcessAttackPacket(int id, const std::unordered_set<int>& view
 					gClients[pid]->DecreaseHP(gClients[id]->AttackPower);
 					SendBattleResultPacket(id, pid, gClients[id]->AttackPower, 0);
 
-					//gClients[pid]->ExecuteLuaFunc("event_npc_hurt", id);
+					gClients[pid]->ExecuteLuaFunc("event_npc_hurt", id);
 
 					if (gClients[pid]->IsDead())
 					{
